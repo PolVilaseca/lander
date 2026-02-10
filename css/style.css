@@ -1,0 +1,80 @@
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: #050505;
+    font-family: 'Courier New', Courier, monospace;
+    color: #00ff00; /* Classic Terminal Green */
+}
+
+#game-container {
+    position: relative;
+    width: 100vw;
+    height: 100vh;
+}
+
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
+.ui-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10;
+}
+
+.hidden {
+    display: none !important;
+}
+
+.neon-title {
+    font-size: 4rem;
+    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00;
+    margin-bottom: 2rem;
+}
+
+.level-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+}
+
+.neon-btn {
+    background: transparent;
+    border: 2px solid #00ff00;
+    color: #00ff00;
+    padding: 1rem 2rem;
+    font-family: inherit;
+    font-size: 1.2rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    box-shadow: 0 0 5px #00ff00;
+}
+
+.neon-btn:hover {
+    background: #00ff00;
+    color: #000;
+    box-shadow: 0 0 20px #00ff00;
+}
+
+#hud {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    font-size: 1.2rem;
+    pointer-events: none; /* Let clicks pass through */
+    text-shadow: 0 0 5px #00ff00;
+}
+
+#end-message {
+    white-space: pre-line; /* Allows \n to break lines */
+    text-align: center;
+}

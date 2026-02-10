@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Lander</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <div id="menu-screen" class="ui-screen">
+            <h1 class="neon-title">NEON LANDER</h1>
+            <p>Select a Level:</p>
+            <div id="level-list" class="level-grid">
+                </div>
+        </div>
+
+        <div id="end-screen" class="ui-screen hidden">
+            <h2 id="end-message">CRITICAL FAILURE</h2>
+            <button id="btn-retry" class="neon-btn">RETRY</button>
+            <button id="btn-home" class="neon-btn">MAIN MENU</button>
+        </div>
+
+        <div id="hud" class="hidden">
+            <div>FUEL: <span id="hud-fuel">100</span>%</div>
+            <div>HEAT: <span id="hud-heat">0</span>%</div>
+            <div>ALT: <span id="hud-alt">0</span></div>
+        </div>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
