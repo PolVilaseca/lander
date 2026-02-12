@@ -6,29 +6,13 @@
       "width": 3000,
       "height": 2000,
       "gravity": 0.03,
-      "terrain": {
-        "roughness": 100,
-        "flat_spots": 1
-      },
+      "terrain": { "roughness": 100, "flat_spots": 1 },
       "atmosphere": [
-        {
-          "name": "Surface",
-          "height": 100,
-          "color": "rgba(255, 0, 0, 0.1)",
-          "viscosity": 0.2,
-          "wind": 0
-        },
-        {
-          "name": "Exosphere",
-          "height": 1000,
-          "color": "rgba(0, 0, 255, 0.05)",
-          "viscosity": 0.005,
-          "wind": 5
-        }
+        { "name": "Surface", "height": 100, "color": "rgba(255, 0, 0, 0.1)", "viscosity": 0.2, "wind": 0 },
+        { "name": "Exosphere", "height": 1000, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.005, "wind": 5 }
       ],
       "ship_start": { "x": 100, "y": 0, "angle": 0 }
     },
-
     {
       "id": 2,
       "name": "Mars Outpost",
@@ -37,82 +21,73 @@
       "gravity": 0.06,
       "terrain": { "roughness": 550, "flat_spots": 2 },
       "atmosphere": [
-        {
-        "name": "Surface",
-        "height": 200,
-        "color": "rgba(255, 0, 0, 0.1)",
-        "viscosity": 0,
-        "wind": 0
-      }]
+        { "name": "Surface", "height": 200, "color": "rgba(255, 0, 0, 0.1)", "viscosity": 0, "wind": 0 }
+      ]
     },
-
-
     {
       "id": 3,
       "name": "Terra Nova",
       "width": 3000,
       "height": 2000,
       "gravity": 0.03,
-      "terrain": {
-        "roughness": 50,
-        "flat_spots": 3
-      },
+      "terrain": { "roughness": 50, "flat_spots": 3 },
       "atmosphere": [
         {
           "name": "Surface",
           "height": 800,
           "color": "rgba(0, 0, 255, 0.2)",
           "viscosity": 0.005,
-          "wind": 3
+          "wind": 3,
+          "features": {
+            "clouds": {
+              "count": 30,
+              "minSize": 60,
+              "maxSize": 120,
+              "opacity": 0.6
+            }
+          }
         },
         {
           "name": "Troposphere",
           "height": 500,
           "color": "rgba(0, 0, 255, 0.1)",
           "viscosity": 0.005,
-          "wind": 3
+          "wind": 5,
+          "features": {
+             "clouds": {
+              "count": 5,
+              "minSize": 20,
+              "maxSize": 60,
+              "opacity": 0.4
+             }
+          }
         },
-        {
-          "name": "Exosphere",
-          "height": 500,
-          "color": "rgba(0, 0, 255, 0.05)",
-          "viscosity": 0.0025,
-          "wind": 5
-        }
+        { "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.0025, "wind": 5 }
       ],
       "ship_start": { "x": 500, "y": 100, "vx": -50, "angle": 0 }
     },
-
-
-
     {
-      "id": 1,
+      "id": 4,
       "name": "The Moon",
       "width": 3000,
       "height": 2000,
       "gravity": 0.02,
       "color": "#eeeeee",
       "ship_start": { "x": 1500, "y": 200 },
-      "terrain": {
-        "roughness": 150,
-        "flat_spots": 3
-      },
+      "terrain": { "roughness": 150, "flat_spots": 3 },
       "atmosphere": [
         { "name": "Vacuum", "height": 2000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0 }
       ]
     },
     {
-      "id": 2,
+      "id": 5,
       "name": "Mars",
       "width": 4000,
       "height": 2500,
       "gravity": 0.035,
       "color": "#ff4400",
       "ship_start": { "x": 500, "y": 100 },
-      "terrain": {
-        "roughness": 250,
-        "flat_spots": 2
-      },
+      "terrain": { "roughness": 250, "flat_spots": 2 },
       "atmosphere": [
         { "name": "Thin Atmosphere", "height": 1000, "color": "rgba(255, 100, 50, 0.1)", "viscosity": 0.005, "wind": 2.0 },
         { "name": "Dust Layer", "height": 500, "color": "rgba(200, 50, 0, 0.2)", "viscosity": 0.02, "wind": 5.0 },
@@ -120,25 +95,24 @@
       ]
     },
     {
-      "id": 3,
+      "id": 6,
       "name": "Venus",
       "width": 3500,
       "height": 3000,
       "gravity": 0.05,
       "color": "#ccaa00",
       "ship_start": { "x": 1000, "y": -200 },
-      "terrain": {
-        "roughness": 100,
-        "flat_spots": 2
-      },
+      "terrain": { "roughness": 100, "flat_spots": 2 },
       "atmosphere": [
         { "name": "Super-Critical Fluid", "height": 1500, "color": "rgba(200, 200, 0, 0.3)", "viscosity": 0.005, "wind": 3.0 },
-        { "name": "Acid Clouds", "height": 800, "color": "rgba(255, 255, 100, 0.2)", "viscosity": 0.0025, "wind": -4.0 },
+        { "name": "Acid Clouds", "height": 800, "color": "rgba(255, 255, 100, 0.2)", "viscosity": 0.0025, "wind": -4.0,
+          "features": {
+              "clouds": {"count": 15, "minSize": 60,"maxSize": 120,"opacity": 0.6}
+            }
+        },
         { "name": "Upper Atmosphere", "height": 600, "color": "rgba(100, 100, 255, 0.1)", "viscosity": 0.01, "wind": 4.0 },
         { "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0 }
       ]
     }
-
-
   ]
 }
