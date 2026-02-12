@@ -25,7 +25,6 @@ export class Atmosphere {
                 const cfg = layer.features.clouds;
                 const count = cfg.count || 10;
 
-                // NEW: Force Semi-transparent Grey
                 const opacity = cfg.opacity || 0.4;
                 const cloudColor = `rgba(120, 120, 120, ${opacity})`;
 
@@ -68,6 +67,7 @@ export class Atmosphere {
 
     update(particleSystem, width, height) {
         this.processedLayers.forEach(layer => {
+            // 1. WIND
             if (Math.abs(layer.wind) > 0.5) {
                 const chance = Math.abs(layer.wind) * 0.05;
                 if (Math.random() < chance) {
@@ -76,6 +76,32 @@ export class Atmosphere {
                     const alpha = Math.min(0.8, Math.abs(layer.wind) / 10);
                     const color = `rgba(220, 240, 255, ${alpha})`;
                     particleSystem.createWindParticle(x, y, layer.wind, color);
+                }
+            }
+
+            // 2. METEORITES
+            // "Can be added in any layer... but always triggers spawning in deep space"
+            if (layer.features && layer.features.meteorites) {
+                const cfg = layer.features.meteorites;
+                // rate is probability per frame
+                if (Math.random() < (cfg.rate || 0.01)) {
+                    // Spawn High Up (Top of world = 0)
+                    // Or top of this layer? Prompt said "high in the deep space layer".
+                    // We'll spawn at Y = -100 to ensure they come from "above" screen
+                    const spawnY = -100;
+                    const spawnX = Math.random() * width;
+
+                    // Random Size
+                    const size = 5 + Math.random() * (cfg.maxSize - 5 || 10);
+
+                    // Velocity
+                    const vxRange = cfg.velX || [-1, 1];
+                    const vyRange = cfg.velY || [1, 3];
+
+                    const vx = vxRange[0] + Math.random() * (vxRange[1] - vxRange[0]);
+                    const vy = vyRange[0] + Math.random() * (vyRange[1] - vyRange[0]);
+
+                    particleSystem.createMeteorite(spawnX, spawnY, vx, vy, size);
                 }
             }
         });
