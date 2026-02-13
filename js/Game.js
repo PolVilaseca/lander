@@ -10,7 +10,6 @@ export class Game {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
-        // Dimensions
         this.screenWidth = 0;
         this.screenHeight = 0;
         this.worldWidth = 0;
@@ -20,7 +19,6 @@ export class Game {
         this.active = false;
         this.lastTime = 0;
 
-        // Systems
         this.input = new InputHandler();
         this.particles = new ParticleSystem();
         this.background = null;
@@ -29,7 +27,6 @@ export class Game {
         this.atmosphere = null;
         this.levelData = null;
 
-        // UI
         this.uiFuel = document.getElementById('hud-fuel');
         this.uiHeat = document.getElementById('hud-heat');
         this.uiAlt = document.getElementById('hud-alt');
@@ -39,40 +36,26 @@ export class Game {
     }
 
     resize() {
-        // 1. Get the pixel density (1 on standard, 2+ on Retina/Mac)
         const dpr = window.devicePixelRatio || 1;
-
-        // 2. Update Logical Size (CSS Pixels)
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
 
-        // 3. Set Canvas CSS size (Logical)
         this.canvas.style.width = `${this.screenWidth}px`;
         this.canvas.style.height = `${this.screenHeight}px`;
 
-        // 4. Set Canvas Buffer size (Physical - High Res)
         this.canvas.width = Math.floor(this.screenWidth * dpr);
         this.canvas.height = Math.floor(this.screenHeight * dpr);
 
-        // 5. Normalize Coordinate System
         this.ctx.scale(dpr, dpr);
 
-        // 6. Resize Background if it exists
         if (this.background) {
             this.background.resize(this.screenWidth, this.screenHeight);
         }
     }
 
     start(levelData) {
+        this.resize();
         this.levelData = levelData;
-
-        // Stars need screen dimensions
-        // We create it before resize() ensures it has data,
-        // but resize() will be called immediately after.
-        this.background = new Background(window.innerWidth, window.innerHeight);
-
-        this.resize(); // Ensure size is correct
-
         this.worldWidth = levelData.width;
         this.worldHeight = levelData.height;
 
@@ -84,11 +67,24 @@ export class Game {
         if (startPos.angle !== undefined) this.ship.angle = startPos.angle;
         if (startPos.vx !== undefined) this.ship.vx = startPos.vx;
 
+        this.background = new Background(this.screenWidth, this.screenHeight);
+
         this.particles.clear();
         this.atmosphere.initFeatures(this.particles, this.worldWidth);
 
+        // Spawn Space Stations
+        if (levelData.space_stations) {
+            levelData.space_stations.forEach(st => {
+                // Convert Altitude to Y
+                const y = this.worldHeight - st.altitude;
+                // Random X position if not specified
+                const x = st.x || (Math.random() * this.worldWidth);
+                this.particles.createSpaceStation(x, y, st.speed, st.size);
+            });
+        }
+
         this.active = true;
-        this.lastTime = 0; // Reset timer
+        this.lastTime = 0;
         requestAnimationFrame(this.loop);
     }
 
@@ -98,7 +94,6 @@ export class Game {
 
     loop(timestamp) {
         if (!this.active) return;
-
         if (!this.lastTime) this.lastTime = timestamp;
 
         let dt = (timestamp - this.lastTime) / 1000;
@@ -116,10 +111,9 @@ export class Game {
         const gravity = this.levelData.gravity || 0.03;
         const step = dt * 60;
 
-        // 1. Update Ship
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
-        // 2. Friction Sparks
+        // Friction Sparks
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -139,9 +133,17 @@ export class Game {
             }
         }
 
-        // 3. Update Systems
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
+
+        // CHECK SPACE STATION COLLISIONS / LANDING
+        if (!this.ship.isDead && !this.ship.landed) {
+            this.particles.particles.forEach(p => {
+                if (p.type === 'station') {
+                    this.checkStationInteraction(p);
+                }
+            });
+        }
 
         this.camera.x = this.ship.x - this.screenWidth / 2;
         this.camera.y = this.ship.y - this.screenHeight / 2;
@@ -157,6 +159,64 @@ export class Game {
         }
 
         this.updateUI();
+    }
+
+    checkStationInteraction(station) {
+        // Simple Coordinate Rotation to Local Space
+        const dx = this.ship.x - station.x;
+        const dy = this.ship.y - station.y;
+
+        // Rotate point backward by station angle to align with axis
+        const cos = Math.cos(-station.angle);
+        const sin = Math.sin(-station.angle);
+
+        const localX = dx * cos - dy * sin;
+        const localY = dx * sin + dy * cos;
+
+        const halfSize = station.size / 2;
+
+        // 1. COLLISION (Body + Panels)
+        // Main Body Box (approx)
+        if (Math.abs(localX) < halfSize + 5 && Math.abs(localY) < halfSize + 5) {
+             // 2. LANDING CHECK (Top Side -> Local Y approx -halfSize)
+             // Landing Pad is on the "Top" (Negative Y in local)
+             // Ship must be:
+             // - Within X width of pad (say 30% of size)
+             // - Near the surface Y = -halfSize
+             // - Low Relative Speed
+
+             // Pad width factor
+             const padWidth = station.size * 0.3;
+             const isAbovePad = Math.abs(localX) < padWidth;
+             const isTouchingSurface = Math.abs(localY - (-halfSize - this.ship.size/2)) < 5;
+
+             if (isAbovePad && isTouchingSurface) {
+                 // Check Velocities (Relative to station)
+                 const relVx = this.ship.vx - station.vx;
+                 const relVy = this.ship.vy - station.vy; // station.vy is 0 usually
+
+                 // Check Angle (Ship should be aligned with station Up vector)
+                 // Station Up is -PI/2 + angle. Ship Angle should match.
+                 // Ship default up is -PI/2.
+                 // So Ship Angle should be roughly -PI/2 + Station Angle
+                 const targetAngle = -Math.PI/2 + station.angle;
+                 let angleDiff = Math.abs(this.ship.angle - targetAngle);
+                 // Normalize angle
+                 while(angleDiff > Math.PI) angleDiff -= Math.PI*2;
+                 angleDiff = Math.abs(angleDiff);
+
+                 if (Math.abs(relVx) < 2.0 && Math.abs(relVy) < 2.0 && angleDiff < 0.5) {
+                     this.ship.landed = true;
+                     return;
+                 }
+             }
+
+             // If not landing successfully, it's a crash
+             this.ship.exploded = true;
+             // Explode station too? (Effect only)
+             this.particles.createExplosion(station.x, station.y, station.vx, 0, "#ffffff", 50);
+             station.life = 0; // Destroy station
+        }
     }
 
     updateUI() {
@@ -180,12 +240,10 @@ export class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.screenWidth, this.screenHeight);
 
-        // 1. Draw Background (Static - No camera args needed)
         if (this.background) {
             this.background.draw(this.ctx);
         }
 
-        // 2. Draw World (Camera Space)
         const cameraX = this.ship.x - this.screenWidth / 2;
         const cameraY = this.ship.y - this.screenHeight / 2;
 
@@ -206,7 +264,6 @@ export class Game {
         if (this.ship.x < this.screenWidth) drawWorldLayer(-this.worldWidth);
         if (this.ship.x > this.worldWidth - this.screenWidth) drawWorldLayer(this.worldWidth);
 
-        // 3. Draw UI
         this.drawRadar();
     }
 
