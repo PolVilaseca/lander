@@ -34,11 +34,25 @@
       "atmosphere": [
         {
           "name": "Surface", "height": 800, "color": "rgba(0, 0, 255, 0.2)", "viscosity": 0.005, "wind": 3,
-          "features": { "clouds": { "count": 15, "minSize": 60, "maxSize": 120, "opacity": 0.6 } }
+          "features": {
+              "clouds": {
+                  "count": 15,
+                  "minWidth": 180, "maxWidth": 300,
+                  "minHeight": 40, "maxHeight": 80,
+                  "opacity": 0.6
+              }
+          }
         },
         {
           "name": "Troposphere", "height": 500, "color": "rgba(0, 0, 255, 0.1)", "viscosity": 0.005, "wind": 5,
-          "features": { "clouds": { "count": 5, "minSize": 40, "maxSize": 80, "opacity": 0.4 } }
+          "features": {
+              "clouds": {
+                  "count": 5,
+                  "minWidth": 120, "maxWidth": 200,
+                  "minHeight": 30, "maxHeight": 60,
+                  "opacity": 0.4
+              }
+          }
         },
         { "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.0025, "wind": 5 }
       ],
@@ -73,7 +87,7 @@
           "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0,
           "features": {
             "meteorites": {
-              "rate": 0.15,
+              "rate": 0.015,
               "maxSize": 20,
               "velX": [-3, 3],
               "velY": [2, 5]
@@ -95,7 +109,14 @@
         { "name": "Super-Critical Fluid", "height": 1500, "color": "rgba(200, 200, 0, 0.3)", "viscosity": 0.005, "wind": 3.0 },
         {
           "name": "Acid Clouds", "height": 800, "color": "rgba(255, 255, 100, 0.2)", "viscosity": 0.0025, "wind": -4.0,
-          "features": { "clouds": { "count": 15, "minSize": 60, "maxSize": 120, "opacity": 0.6 } }
+          "features": {
+              "clouds": {
+                  "count": 15,
+                  "minWidth": 200, "maxWidth": 400,
+                  "minHeight": 50, "maxHeight": 100,
+                  "opacity": 0.6
+              }
+          }
         },
         { "name": "Upper Atmosphere", "height": 600, "color": "rgba(100, 100, 255, 0.1)", "viscosity": 0.01, "wind": 4.0 },
         { "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0 }

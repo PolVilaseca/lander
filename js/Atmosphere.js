@@ -33,13 +33,26 @@ export class Atmosphere {
                     const margin = (layer.bottomY - layer.topY) * 0.1;
                     const y = layer.topY + margin + Math.random() * (layer.bottomY - layer.topY - margin*2);
 
-                    const size = cfg.minSize + Math.random() * (cfg.maxSize - cfg.minSize);
+                    const minW = cfg.minWidth || (cfg.minSize * 3) || 100;
+                    const maxW = cfg.maxWidth || (cfg.maxSize * 3) || 200;
+                    const minH = cfg.minHeight || cfg.minSize || 30;
+                    const maxH = cfg.maxHeight || cfg.maxSize || 60;
 
+                    const width = minW + Math.random() * (maxW - minW);
+                    const height = minH + Math.random() * (maxH - minH);
+
+                    // --- UPDATED SPEED LOGIC ---
                     const windSpeed = layer.wind || 0;
-                    const speedVariation = 0.8 + Math.random() * 0.4;
-                    const speed = windSpeed * speedVariation;
 
-                    particleSystem.createCloud(x, y, speed, cloudColor, size);
+                    // Basis is HALF the wind speed
+                    const baseSpeed = windSpeed * 0.5;
+
+                    // Variation (e.g., 0.8x to 1.2x of the base speed)
+                    const speedVariation = 0.8 + Math.random() * 0.4;
+
+                    const speed = baseSpeed * speedVariation;
+
+                    particleSystem.createCloud(x, y, speed, cloudColor, width, height);
                 }
             }
         });
@@ -67,7 +80,7 @@ export class Atmosphere {
 
     update(particleSystem, width, height) {
         this.processedLayers.forEach(layer => {
-            // 1. WIND
+            // Wind particles still move at full wind speed to show the "force" of the wind
             if (Math.abs(layer.wind) > 0.5) {
                 const chance = Math.abs(layer.wind) * 0.05;
                 if (Math.random() < chance) {
@@ -79,22 +92,14 @@ export class Atmosphere {
                 }
             }
 
-            // 2. METEORITES
-            // "Can be added in any layer... but always triggers spawning in deep space"
             if (layer.features && layer.features.meteorites) {
                 const cfg = layer.features.meteorites;
-                // rate is probability per frame
                 if (Math.random() < (cfg.rate || 0.01)) {
-                    // Spawn High Up (Top of world = 0)
-                    // Or top of this layer? Prompt said "high in the deep space layer".
-                    // We'll spawn at Y = -100 to ensure they come from "above" screen
                     const spawnY = -100;
                     const spawnX = Math.random() * width;
 
-                    // Random Size
                     const size = 5 + Math.random() * (cfg.maxSize - 5 || 10);
 
-                    // Velocity
                     const vxRange = cfg.velX || [-1, 1];
                     const vyRange = cfg.velY || [1, 3];
 
