@@ -62,15 +62,29 @@
       "id": 4,
       "name": "The Moon",
       "width": 3000,
-      "height": 2000,
-      "gravity": 0.02,
+      "height": 1000,
+      "gravity": 0.04,
       "color": "#eeeeee",
-      "ship_start": { "x": 1500, "y": 200 },
+      "ship_start": { "x": 500, "y": 200 },
       "terrain": { "roughness": 150, "flat_spots": 3 },
       "atmosphere": [
-        { "name": "Vacuum", "height": 2000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0 }
+        {
+          "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0,
+          "features": {
+            "meteorites": {
+              "rate": 0.015,
+              "maxSize": 20,
+              "velX": [-10, 10],
+              "velY": [2, 5]
+            }
+          }
+        }
       ]
     },
+
+
+
+
     {
       "id": 5,
       "name": "Mars (Meteorites)",
