@@ -23,90 +23,79 @@ export class Ship {
     update(input, gravity, worldWidth, worldHeight, atmosphere, terrain, dt) {
         if (this.isDead || this.landed) return;
 
-        // Normalization: Game was tuned for 60FPS.
-        // Step is 1.0 at 60Hz, 0.5 at 120Hz, etc.
         const step = dt * 60;
 
-        // 1. Rotation
+        // 1. Rotation & Thrust
         if (input.rotateLeft) this.angle -= this.rotationSpeed * step;
         if (input.rotateRight) this.angle += this.rotationSpeed * step;
 
-        // 2. Thrust
         this.isThrusting = false;
         if (input.thrust && this.fuel > 0) {
             this.isThrusting = true;
             this.fuel -= this.fuelConsumption * step;
-
-            const forceX = Math.cos(this.angle) * this.thrustPower * step;
-            const forceY = Math.sin(this.angle) * this.thrustPower * step;
-            this.vx += forceX;
-            this.vy += forceY;
+            this.vx += Math.cos(this.angle) * this.thrustPower * step;
+            this.vy += Math.sin(this.angle) * this.thrustPower * step;
         }
 
-        // 3. Gravity
         this.vy += gravity * step;
 
-        // 4. Atmosphere Interaction
+        // 2. Atmosphere Drag & Heat
         if (atmosphere) {
             const layer = atmosphere.getLayerAt(this.y);
-
-            // Wind Influence
-            if (layer.wind) {
-                // Apply wind force
-                this.vx += layer.wind * 0.005 * step;
-            }
-
-            // Drag / Viscosity
+            if (layer.wind) this.vx += layer.wind * 0.005 * step;
             if (layer.viscosity > 0) {
-                this.vx *= (1 - layer.viscosity * step);
-                this.vy *= (1 - layer.viscosity * step);
+                this.vx *= (1 - layer.viscosity * 0.5 * step);
+                this.vy *= (1 - layer.viscosity * 0.5 * step);
 
-                // Heat Generation
                 const relativeVx = this.vx - (layer.wind || 0);
                 const relativeVy = this.vy;
                 const speedSq = relativeVx * relativeVx + relativeVy * relativeVy;
-                // Heat tuning
-                const heatGeneration = Math.sqrt(speedSq) * layer.viscosity * 10;
+                const heatGeneration = Math.sqrt(speedSq) * layer.viscosity * 5;
                 this.heat += heatGeneration * step;
             }
         }
 
-        // 5. Physics Integration
+        // 3. Movement
         this.x += this.vx * step;
         this.y += this.vy * step;
 
-        // 6. World Wrapping
         if (this.x > worldWidth) this.x -= worldWidth;
         if (this.x < 0) this.x += worldWidth;
 
-        // 7. Terrain Collision
+        // 4. Terrain Collision
         if (terrain) {
             const ground = terrain.getHeightAt(this.x);
             if (this.y + (this.size/2) >= ground.y) {
-                // Ground hit
-                this.y = ground.y - (this.size/2); // Snap to surface
+                // Snap to ground
+                this.y = ground.y - (this.size/2);
                 this.vy = 0;
 
-                // Check landing conditions
                 const speedH = Math.abs(this.vx);
+                const speedV = Math.abs(this.vy); // Likely 0 now
                 const angleDiff = Math.abs(this.angle - (-Math.PI/2));
 
-                // Landing threshold
-                if (ground.isPad && speedH < 1.5 && this.vy < 2.0 && angleDiff < 0.25) {
-                    this.landed = true;
+                // SAFE LANDING OR LAUNCH PAD CHECK
+                const isSafeSpeed = speedH < 2.0 && speedV < 3.0 && angleDiff < 0.3;
+
+                if ((ground.isPad || ground.isLaunchPad) && isSafeSpeed) {
+                    if (ground.isPad) {
+                        this.landed = true; // Win Level
+                        this.vx = 0;
+                    }
+                    else if (ground.isLaunchPad) {
+                        // Just sitting on launch pad. Safe.
+                        this.vx *= 0.9; // Friction to stop sliding
+                    }
                 } else {
                     this.exploded = true;
                 }
             }
         }
 
-        // 8. Natural Cooling
-        this.heat -= 0.1 * step;
+        // 5. Cooling
+        this.heat -= 0.15 * step;
         if (this.heat < 0) this.heat = 0;
-
-        if (this.heat >= this.maxHeat) {
-            this.exploded = true;
-        }
+        if (this.heat >= this.maxHeat) this.exploded = true;
     }
 
     draw(ctx) {

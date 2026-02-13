@@ -1,107 +1,128 @@
 export class Terrain {
-  constructor(params, width, height, color = "#ffffff") { // Add color param
-      this.params = params;
-      this.width = width;
-      this.height = height;
-      this.color = color; // Store it
-      this.points = [];
-      this.pads = [];
-      this.segmentWidth = 20;
+    constructor(params, width, height, color = "#ffffff", hasLaunchPad = false) {
+        this.params = params;
+        this.width = width;
+        this.height = height;
+        this.color = color;
+        this.hasLaunchPad = hasLaunchPad;
+        this.points = [];
+        this.pads = [];
+        this.launchPadPosition = null;
+        this.segmentWidth = 20;
 
-      this.generate();
-  }
+        this.generate();
+    }
 
     generate() {
         this.points = [];
         const numPoints = Math.ceil(this.width / this.segmentWidth) + 1;
 
-        // 1. Start with a baseline height (e.g., bottom 20% of screen)
         let currentY = this.height * 0.8;
-        const startY = currentY;
 
-        // 2. Walk through points
+        // Launch Pad Settings
+        const lpStart = 5;
+        const lpEnd = 12;
+        const lpY = this.height - 100;
+
+        // Landing Pad (Green) State
+        let flattenSteps = 0;
+        let flattenHeight = 0;
+        let padsCreated = 0;
+        const flatSpotsNeeded = this.params.flat_spots || 1;
+
         for (let i = 0; i < numPoints; i++) {
             const x = i * this.segmentWidth;
+            let isLaunchPad = false;
 
-            // Randomly move up or down based on roughness
-            // We verify later if this section should be a landing pad
-            const variation = (Math.random() - 0.5) * this.params.roughness;
-            currentY += variation;
+            // 1. Force Launch Pad (Red)
+            if (this.hasLaunchPad && i >= lpStart && i <= lpEnd) {
+                currentY = lpY;
+                isLaunchPad = true;
 
-            // Clamp height so we don't go off-screen
-            // Keep it between 50% height and bottom-10px
-            if (currentY < this.height * 0.5) currentY = this.height * 0.5;
-            if (currentY > this.height - 20) currentY = this.height - 20;
+                // Store center of launch pad
+                if (i === Math.floor((lpStart + lpEnd) / 2)) {
+                    this.launchPadPosition = { x: x, y: currentY };
+                }
 
-            this.points.push({ x: x, y: currentY, isPad: false });
+                // Cancel any green pad flattening here
+                flattenSteps = 0;
+            }
+            else {
+                // 2. Normal Terrain Logic
+                if (flattenSteps > 0) {
+                    // We are currently generating a flat Green Pad
+                    currentY = flattenHeight;
+                    flattenSteps--;
+                } else {
+                    // Random terrain variation
+                    const variation = (Math.random() - 0.5) * this.params.roughness;
+                    currentY += variation;
+
+                    // Clamp to screen bounds
+                    if (currentY < this.height * 0.5) currentY = this.height * 0.5;
+                    if (currentY > this.height - 20) currentY = this.height - 20;
+
+                    // Chance to Start a Green Landing Pad
+                    // Conditions: Not a launch pad area, we need pads, random chance, and not too close to start
+                    if (padsCreated < flatSpotsNeeded && i > 20 && Math.random() < 0.02) {
+                        flattenSteps = 4; // Flatten for next 4 points
+                        flattenHeight = currentY;
+                        padsCreated++;
+                    }
+                }
+            }
+
+            this.points.push({ x: x, y: currentY, isPad: false, isLaunchPad: isLaunchPad });
         }
 
-        // 3. Enforce Loop (Make end match start)
-        // Linearly interpolate the last 20% of points to match the startY
-        const fadeRange = Math.floor(numPoints * 0.2);
-        for (let i = 0; i < fadeRange; i++) {
-            const index = (numPoints - 1) - i;
-            const t = i / fadeRange; // 0 to 1
-            // Blend current noise with startY
-            this.points[index].y = (this.points[index].y * (1-t)) + (startY * t);
-        }
-        // Force exact match on last point
-        this.points[numPoints-1].y = startY;
+        // Post-Processing: Detect flat spots to mark them as "isPad" for physics/drawing
+        for(let i=0; i<this.points.length-1; i++) {
+            if (this.points[i].isLaunchPad) continue;
 
-        // 4. Create Landing Pads
-        // We pick random spots and flatten them
-        for (let k = 0; k < (this.params.flat_spots || 1); k++) {
-            this.createLandingPad();
+            // Check if this point and next are flat relative to each other
+            if (Math.abs(this.points[i].y - this.points[i+1].y) < 0.1) {
+                // Check sequence length
+                let count = 1;
+                while(i+count < this.points.length && Math.abs(this.points[i].y - this.points[i+count].y) < 0.1) {
+                    count++;
+                }
+
+                // If reasonably long, mark as Pad
+                if (count >= 3) {
+                    for(let k=0; k<count; k++) {
+                        this.points[i+k].isPad = true;
+                    }
+                    // Register for Radar
+                    this.pads.push({ x: this.points[i].x + (count*this.segmentWidth)/2, y: this.points[i].y });
+                    i += count - 1;
+                }
+            }
         }
     }
 
-    createLandingPad() {
-        // Pick a random starting index (avoiding very edges)
-        const padWidth = 5; // How many segments wide?
-        const minIdx = 5;
-        const maxIdx = this.points.length - 5 - padWidth;
-        const startIdx = Math.floor(Math.random() * (maxIdx - minIdx) + minIdx);
-
-        // Calculate average height of this area to flatten it reasonably
-        let avgHeight = 0;
-        for(let i=0; i<padWidth; i++) avgHeight += this.points[startIdx + i].y;
-        avgHeight /= padWidth;
-
-        // Flatten logic
-        for (let i = 0; i < padWidth; i++) {
-            this.points[startIdx + i].y = avgHeight;
-            this.points[startIdx + i].isPad = true;
-        }
-
-        const padCenterX = (this.points[startIdx].x + this.points[startIdx + padWidth].x) / 2;
-        this.pads.push({ x: padCenterX });
-    }
-
-    // Get the exact ground height at a specific X coordinate
     getHeightAt(x) {
-        // Find which segment we are in
-        // Since points are sorted by X, we can calculate index directly
         const index = Math.floor(x / this.segmentWidth);
-
-        if (index < 0 || index >= this.points.length - 1) return this.height;
+        if (index < 0 || index >= this.points.length - 1) {
+            return { y: this.height + 1000, isPad: false, isLaunchPad: false };
+        }
 
         const p1 = this.points[index];
         const p2 = this.points[index + 1];
 
-        // Linear Interpolation (LERP) to find exact Y between points
-        const t = (x - p1.x) / (p2.x - p1.x);
-        const y = p1.y + t * (p2.y - p1.y);
+        const ratio = (x - p1.x) / this.segmentWidth;
+        const y = p1.y + (p2.y - p1.y) * ratio;
 
-        return { y: y, isPad: p1.isPad && p2.isPad }; // Return Y and if it's safe
+        return {
+            y: y,
+            isPad: p1.isPad && p2.isPad,
+            isLaunchPad: p1.isLaunchPad && p2.isLaunchPad
+        };
     }
-
-    // In js/Terrain.js, replace the draw() method:
 
     draw(ctx) {
         ctx.save();
 
-        // 1. Draw The Black Fill
-        // We extend the bottom to this.height + 5000 to cover any camera overshoot
+        // 1. Black Fill
         ctx.fillStyle = "#000000";
         ctx.beginPath();
         if (this.points.length > 0) {
@@ -109,13 +130,12 @@ export class Terrain {
             for (let i = 1; i < this.points.length; i++) {
                 ctx.lineTo(this.points[i].x, this.points[i].y);
             }
-            // Extend infinite black void downwards
             ctx.lineTo(this.width, this.height + 5000);
             ctx.lineTo(0, this.height + 5000);
         }
         ctx.fill();
 
-        // 2. Draw The Surface Line
+        // 2. Surface Line
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
@@ -125,7 +145,7 @@ export class Terrain {
         }
         ctx.stroke();
 
-        // 3. Draw Landing Pads
+        // 3. Landing Pads (Green)
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
         ctx.shadowBlur = 10;
@@ -133,6 +153,20 @@ export class Terrain {
         ctx.beginPath();
         for (let i = 0; i < this.points.length - 1; i++) {
             if (this.points[i].isPad && this.points[i+1].isPad) {
+                ctx.moveTo(this.points[i].x, this.points[i].y);
+                ctx.lineTo(this.points[i+1].x, this.points[i+1].y);
+            }
+        }
+        ctx.stroke();
+
+        // 4. Launch Pads (Red)
+        ctx.strokeStyle = '#ff0000';
+        ctx.lineWidth = 4;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = '#ff0000';
+        ctx.beginPath();
+        for (let i = 0; i < this.points.length - 1; i++) {
+            if (this.points[i].isLaunchPad && this.points[i+1].isLaunchPad) {
                 ctx.moveTo(this.points[i].x, this.points[i].y);
                 ctx.lineTo(this.points[i+1].x, this.points[i+1].y);
             }

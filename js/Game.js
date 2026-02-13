@@ -59,25 +59,39 @@ export class Game {
         this.worldWidth = levelData.width;
         this.worldHeight = levelData.height;
 
-        this.terrain = new Terrain(levelData.terrain, this.worldWidth, this.worldHeight, levelData.color);
+        // PASS FLAG TO TERRAIN
+        this.terrain = new Terrain(
+            levelData.terrain,
+            this.worldWidth,
+            this.worldHeight,
+            levelData.color,
+            levelData.start_on_ground // New param
+        );
+
         this.atmosphere = new Atmosphere(levelData.atmosphere, this.worldHeight);
 
+        // INITIALIZE SHIP
         const startPos = levelData.ship_start || { x: 100, y: 0 };
         this.ship = new Ship(startPos.x, startPos.y);
         if (startPos.angle !== undefined) this.ship.angle = startPos.angle;
         if (startPos.vx !== undefined) this.ship.vx = startPos.vx;
 
-        this.background = new Background(this.screenWidth, this.screenHeight);
+        // OVERRIDE IF START ON GROUND
+        if (levelData.start_on_ground && this.terrain.launchPadPosition) {
+            this.ship.x = this.terrain.launchPadPosition.x;
+            this.ship.y = this.terrain.launchPadPosition.y - this.ship.size - 2; // Sit just above
+            this.ship.vx = 0;
+            this.ship.vy = 0;
+            this.ship.angle = -Math.PI / 2; // Point Up
+        }
 
+        this.background = new Background(this.screenWidth, this.screenHeight);
         this.particles.clear();
         this.atmosphere.initFeatures(this.particles, this.worldWidth);
 
-        // Spawn Space Stations
         if (levelData.space_stations) {
             levelData.space_stations.forEach(st => {
-                // Convert Altitude to Y
                 const y = this.worldHeight - st.altitude;
-                // Random X position if not specified
                 const x = st.x || (Math.random() * this.worldWidth);
                 this.particles.createSpaceStation(x, y, st.speed, st.size);
             });
@@ -113,7 +127,6 @@ export class Game {
 
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
-        // Friction Sparks
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -136,7 +149,6 @@ export class Game {
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
 
-        // CHECK SPACE STATION COLLISIONS / LANDING
         if (!this.ship.isDead && !this.ship.landed) {
             this.particles.particles.forEach(p => {
                 if (p.type === 'station') {
@@ -174,49 +186,55 @@ export class Game {
         const localY = dx * sin + dy * cos;
 
         const halfSize = station.size / 2;
+        const padWidth = station.size * 0.35;
 
-        // 1. COLLISION (Body + Panels)
-        // Main Body Box (approx)
-        if (Math.abs(localX) < halfSize + 5 && Math.abs(localY) < halfSize + 5) {
-             // 2. LANDING CHECK (Top Side -> Local Y approx -halfSize)
-             // Landing Pad is on the "Top" (Negative Y in local)
-             // Ship must be:
-             // - Within X width of pad (say 30% of size)
-             // - Near the surface Y = -halfSize
-             // - Low Relative Speed
+        // UPDATE: Reduced tolerance from 10 to 4 for tighter landing
+        const landingTolerance = 4;
 
-             // Pad width factor
-             const padWidth = station.size * 0.3;
-             const isAbovePad = Math.abs(localX) < padWidth;
-             const isTouchingSurface = Math.abs(localY - (-halfSize - this.ship.size/2)) < 5;
-
-             if (isAbovePad && isTouchingSurface) {
-                 // Check Velocities (Relative to station)
-                 const relVx = this.ship.vx - station.vx;
-                 const relVy = this.ship.vy - station.vy; // station.vy is 0 usually
-
-                 // Check Angle (Ship should be aligned with station Up vector)
-                 // Station Up is -PI/2 + angle. Ship Angle should match.
-                 // Ship default up is -PI/2.
-                 // So Ship Angle should be roughly -PI/2 + Station Angle
-                 const targetAngle = -Math.PI/2 + station.angle;
-                 let angleDiff = Math.abs(this.ship.angle - targetAngle);
-                 // Normalize angle
-                 while(angleDiff > Math.PI) angleDiff -= Math.PI*2;
-                 angleDiff = Math.abs(angleDiff);
-
-                 if (Math.abs(relVx) < 2.0 && Math.abs(relVy) < 2.0 && angleDiff < 0.5) {
-                     this.ship.landed = true;
-                     return;
-                 }
-             }
-
-             // If not landing successfully, it's a crash
-             this.ship.exploded = true;
-             // Explode station too? (Effect only)
-             this.particles.createExplosion(station.x, station.y, station.vx, 0, "#ffffff", 50);
-             station.life = 0; // Destroy station
+        // 1. CHECK TOP PAD (Negative Local Y)
+        const topDist = Math.abs(localY - (-halfSize - this.ship.size/2));
+        if (Math.abs(localX) < padWidth && topDist < landingTolerance) {
+             this.attemptStationLand(station, -Math.PI/2);
+             return;
         }
+
+        // 2. CHECK BOTTOM PAD (Positive Local Y)
+        const botDist = Math.abs(localY - (halfSize + this.ship.size/2));
+        if (Math.abs(localX) < padWidth && botDist < landingTolerance) {
+             this.attemptStationLand(station, Math.PI/2);
+             return;
+        }
+
+        // 3. COLLISION (If not landing)
+        // Main Body Box (approx) with slight margin
+        if (Math.abs(localX) < halfSize + 2 && Math.abs(localY) < halfSize + 2) {
+             this.crashStation(station);
+        }
+    }
+
+    attemptStationLand(station, padLocalNormal) {
+        const relVx = this.ship.vx - station.vx;
+        const relVy = this.ship.vy - station.vy;
+
+        const targetAngle = station.angle + padLocalNormal;
+
+        let angleDiff = Math.abs(this.ship.angle - targetAngle);
+        while(angleDiff > Math.PI) angleDiff -= Math.PI*2;
+        angleDiff = Math.abs(angleDiff);
+
+        if (Math.abs(relVx) < 2.5 && Math.abs(relVy) < 2.5 && angleDiff < 0.6) {
+             this.ship.landed = true;
+             this.ship.vx = station.vx;
+             this.ship.vy = station.vy;
+        } else {
+             this.crashStation(station);
+        }
+    }
+
+    crashStation(station) {
+        this.ship.exploded = true;
+        this.particles.createExplosion(station.x, station.y, station.vx, 0, "#ffffff", 50);
+        station.life = 0;
     }
 
     updateUI() {
@@ -274,12 +292,14 @@ export class Game {
         const radarX = centerX - (radarW / 2);
         const radarY = 40;
 
+        // Radar Background
         this.ctx.fillStyle = "rgba(0, 40, 0, 0.6)";
         this.ctx.fillRect(radarX, radarY, radarW, radarH);
         this.ctx.strokeStyle = "#00ff00";
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(radarX, radarY, radarW, radarH);
 
+        // 1. Terrain Pads (White)
         this.ctx.fillStyle = "#ffffff";
         if (this.terrain) {
             this.terrain.pads.forEach(pad => {
@@ -288,10 +308,22 @@ export class Game {
             });
         }
 
+        // 2. Space Stations (Cyan)
+        this.ctx.fillStyle = "#00ffff";
+        this.particles.particles.forEach(p => {
+            if (p.type === 'station') {
+                const stationX = (p.x / this.worldWidth) * radarW;
+                // Draw a small distinct marker (Cyan Rectangle)
+                this.ctx.fillRect(radarX + stationX - 2, radarY - 2, 4, 14);
+            }
+        });
+
+        // 3. Ship (Green)
         const shipX = (this.ship.x / this.worldWidth) * radarW;
         this.ctx.fillStyle = "#00ff00";
         this.ctx.fillRect(radarX + shipX - 1, radarY - 4, 2, 18);
 
+        // Text HUD
         this.ctx.font = "bold 16px Courier New";
         this.ctx.textAlign = "center";
         let layerName = "SPACE";

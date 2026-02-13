@@ -30,6 +30,7 @@
       "width": 3000,
       "height": 2000,
       "gravity": 0.03,
+      "start_on_ground": true,
       "terrain": { "roughness": 50, "flat_spots": 3 },
       "space_stations": [
         { "altitude": 2000, "size": 100, "speed": 1.5 }
@@ -69,7 +70,7 @@
           }
         }
       ],
-      "ship_start": { "x": 500, "y": 1500, "vx": 0, "angle": 0 }
+      "ship_start": { "x": 500, "y": 100, "vx": 0, "angle": 0 }
     },
     {
       "id": 4,

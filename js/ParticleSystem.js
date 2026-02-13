@@ -13,7 +13,6 @@ export class Particle {
         this.zLayer = zLayer;
         this.alpha = 1;
 
-        // Rotation
         this.angle = angle;
         this.rotationSpeed = rotationSpeed;
     }
@@ -23,7 +22,6 @@ export class Particle {
         this.y += this.vy * step;
         this.angle += this.rotationSpeed * step;
 
-        // Infinite life for persistent objects
         if (this.type !== 'cloud' && this.type !== 'meteorite' && this.type !== 'debris' && this.type !== 'station') {
             this.life -= step;
         }
@@ -74,19 +72,17 @@ export class Particle {
             ctx.strokeRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
 
         } else if (this.type === 'station') {
-            // 1. Draw Solar Panels (Rectangles on Left/Right)
-            // Local coords relative to center
+            // WIREFRAME STATION
             const s = this.size;
-            ctx.strokeStyle = '#3366cc'; // Blueish panels
+
+            // 1. Solar Panels (Rectangles on Left/Right)
+            ctx.strokeStyle = '#3366cc';
             ctx.lineWidth = 2;
-            // Left Panel
             ctx.strokeRect(this.x - s*1.2, this.y - s*0.25, s*0.7, s*0.5);
-            // Right Panel
             ctx.strokeRect(this.x + s*0.5, this.y - s*0.25, s*0.7, s*0.5);
 
             // Connectors
             ctx.strokeStyle = '#999';
-            ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(this.x - s*0.5, this.y);
             ctx.lineTo(this.x - s*1.2, this.y);
@@ -94,23 +90,30 @@ export class Particle {
             ctx.lineTo(this.x + s*1.2, this.y);
             ctx.stroke();
 
-            // 2. Main Body (White Square)
+            // 2. Main Body (White Square Outline)
             ctx.strokeStyle = '#ffffff';
             ctx.strokeRect(this.x - s/2, this.y - s/2, s, s);
 
-            // 3. Central Circle
+            // 3. Central Circle (Outline)
             ctx.strokeStyle = '#ccc';
             ctx.beginPath();
             ctx.arc(this.x, this.y, s*0.25, 0, Math.PI*2);
-            ctx.fill();
+            ctx.stroke();
 
-            // 4. Landing Pad (On Top Side - Local Y negative)
-            // Green line indicating safe landing zone
+            // 4. Landing Pads (Top AND Bottom)
             ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 4;
+            ctx.lineWidth = 3;
+
+            // Top Pad
             ctx.beginPath();
             ctx.moveTo(this.x - s*0.3, this.y - s/2);
             ctx.lineTo(this.x + s*0.3, this.y - s/2);
+            ctx.stroke();
+
+            // Bottom Pad (New)
+            ctx.beginPath();
+            ctx.moveTo(this.x - s*0.3, this.y + s/2);
+            ctx.lineTo(this.x + s*0.3, this.y + s/2);
             ctx.stroke();
 
         } else {
@@ -185,17 +188,14 @@ export class ParticleSystem {
     createSpaceDebris(x, y, vx, size) {
         const angle = Math.random() * Math.PI * 2;
         const rotSpeed = (Math.random() - 0.5) * 0.1;
-
         this.particles.push(new Particle(
             x, y, vx, 0,
             Infinity, '#ffffff', size, 'debris', 0, null, angle, rotSpeed
         ));
     }
 
-    // NEW: Space Station
     createSpaceStation(x, y, vx, size) {
-        const angle = Math.random() * Math.PI * 2; // Random initial rotation
-        // Fixed orientation after spawn (rotSpeed = 0)
+        const angle = Math.random() * Math.PI * 2;
         this.particles.push(new Particle(
             x, y, vx, 0,
             Infinity, '#ffffff', size, 'station', 0, null, angle, 0
@@ -213,14 +213,12 @@ export class ParticleSystem {
             } else if (p.type === 'spark') {
                 p.vy += gravity * 0.1 * step;
             }
-            // Station and Debris ignore gravity
 
             p.update(step);
 
             if (p.x > worldWidth) p.x -= worldWidth;
             else if (p.x < 0) p.x += worldWidth;
 
-            // METEORITE LOGIC
             if (p.type === 'meteorite') {
                 if (atmosphere) {
                     const layer = atmosphere.getLayerAt(p.y);
@@ -257,7 +255,6 @@ export class ParticleSystem {
                 if (p.y > 5000) p.life = 0;
             }
 
-            // DEBRIS LOGIC
             if (p.type === 'debris') {
                 if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;
@@ -271,8 +268,6 @@ export class ParticleSystem {
                     }
                 }
             }
-
-            // Note: Station collision handled in Game.js to allow landing logic
 
             if (p.life <= 0) {
                 this.particles.splice(i, 1);
