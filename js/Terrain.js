@@ -19,9 +19,12 @@ export class Terrain {
 
         let currentY = this.height * 0.8;
 
-        // Launch Pad Settings
-        const lpStart = 5;
-        const lpEnd = 12;
+        // Launch Pad Settings - CENTERED
+        // We want the pad in the middle of the world width
+        const centerIndex = Math.floor(numPoints / 2);
+        const padRadius = 4; // Total width approx 8-9 segments
+        const lpStart = centerIndex - padRadius;
+        const lpEnd = centerIndex + padRadius;
         const lpY = this.height - 100;
 
         // Landing Pad (Green) State
@@ -40,7 +43,7 @@ export class Terrain {
                 isLaunchPad = true;
 
                 // Store center of launch pad
-                if (i === Math.floor((lpStart + lpEnd) / 2)) {
+                if (i === centerIndex) {
                     this.launchPadPosition = { x: x, y: currentY };
                 }
 
@@ -63,8 +66,12 @@ export class Terrain {
                     if (currentY > this.height - 20) currentY = this.height - 20;
 
                     // Chance to Start a Green Landing Pad
-                    // Conditions: Not a launch pad area, we need pads, random chance, and not too close to start
-                    if (padsCreated < flatSpotsNeeded && i > 20 && Math.random() < 0.02) {
+                    // Conditions: Not a launch pad area (check margin), we need pads, random chance
+                    // Ensure we are far enough from launch pad
+                    const distToLP = Math.abs(i - centerIndex);
+                    const safeDist = padRadius + 10; // Buffer
+
+                    if (distToLP > safeDist && padsCreated < flatSpotsNeeded && i > 20 && Math.random() < 0.02) {
                         flattenSteps = 4; // Flatten for next 4 points
                         flattenHeight = currentY;
                         padsCreated++;
