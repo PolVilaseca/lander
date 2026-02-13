@@ -4,7 +4,7 @@ export class Ship {
         this.y = y;
         this.vx = 0;
         this.vy = 0;
-        this.angle = -Math.PI / 2; // Pointing UP
+        this.angle = -Math.PI / 2;
 
         this.thrustPower = 0.15;
         this.rotationSpeed = 0.08;
@@ -14,67 +14,94 @@ export class Ship {
         this.heat = 0;
         this.maxHeat = 100;
         this.exploded = false;
+        this.landed = false;
         this.isDead = false;
 
         this.size = 20;
     }
 
-    update(input, gravity, width, height) {
-        if (this.isDead) return;
+    update(input, gravity, worldWidth, worldHeight, atmosphere, terrain, dt) {
+        if (this.isDead || this.landed) return;
 
-        if (input.rotateLeft) this.angle -= this.rotationSpeed;
-        if (input.rotateRight) this.angle += this.rotationSpeed;
+        // Normalization: Game was tuned for 60FPS.
+        // Step is 1.0 at 60Hz, 0.5 at 120Hz, etc.
+        const step = dt * 60;
 
+        // 1. Rotation
+        if (input.rotateLeft) this.angle -= this.rotationSpeed * step;
+        if (input.rotateRight) this.angle += this.rotationSpeed * step;
+
+        // 2. Thrust
         this.isThrusting = false;
         if (input.thrust && this.fuel > 0) {
             this.isThrusting = true;
-            this.fuel -= this.fuelConsumption;
+            this.fuel -= this.fuelConsumption * step;
 
-            const forceX = Math.cos(this.angle) * this.thrustPower;
-            const forceY = Math.sin(this.angle) * this.thrustPower;
-
+            const forceX = Math.cos(this.angle) * this.thrustPower * step;
+            const forceY = Math.sin(this.angle) * this.thrustPower * step;
             this.vx += forceX;
             this.vy += forceY;
         }
 
-        this.vy += gravity;
+        // 3. Gravity
+        this.vy += gravity * step;
 
-        this.x += this.vx;
-        this.y += this.vy;
+        // 4. Atmosphere Interaction
+        if (atmosphere) {
+            const layer = atmosphere.getLayerAt(this.y);
 
-        if (this.x > width) this.x -= width;
-        else if (this.x < 0) this.x += width;
-    }
+            // Wind Influence
+            if (layer.wind) {
+                // Apply wind force
+                this.vx += layer.wind * 0.005 * step;
+            }
 
-    applyAtmosphere(layer, particleSystem) {
-        if (!layer || this.isDead) return;
+            // Drag / Viscosity
+            if (layer.viscosity > 0) {
+                this.vx *= (1 - layer.viscosity * step);
+                this.vy *= (1 - layer.viscosity * step);
 
-        const relativeVx = this.vx - layer.wind;
-        const relativeVy = this.vy;
-
-        const dragX = -relativeVx * layer.viscosity;
-        const dragY = -relativeVy * layer.viscosity;
-        this.vx += dragX;
-        this.vy += dragY;
-
-        const speedThroughAir = Math.sqrt(relativeVx*relativeVx + relativeVy*relativeVy);
-        const heatGeneration = speedThroughAir * layer.viscosity * 10;
-        this.heat += heatGeneration;
-
-        // VISUALIZE FRICTION
-        if (particleSystem && heatGeneration > 0.1) {
-            if (Math.random() < heatGeneration * 5) {
-                // NEW: Sparks are carried by the wind.
-                // Velocity X = Wind Speed (plus some turbulence)
-                // Velocity Y = Slight downward/random drift, independent of ship
-                const sparkVx = layer.wind + (Math.random() - 0.5) * 2;
-                const sparkVy = (Math.random() - 0.5) * 2;
-
-                particleSystem.createFrictionSpark(this.x, this.y, sparkVx, sparkVy);
+                // Heat Generation
+                const relativeVx = this.vx - (layer.wind || 0);
+                const relativeVy = this.vy;
+                const speedSq = relativeVx * relativeVx + relativeVy * relativeVy;
+                // Heat tuning
+                const heatGeneration = Math.sqrt(speedSq) * layer.viscosity * 10;
+                this.heat += heatGeneration * step;
             }
         }
 
-        this.heat -= 0.1;
+        // 5. Physics Integration
+        this.x += this.vx * step;
+        this.y += this.vy * step;
+
+        // 6. World Wrapping
+        if (this.x > worldWidth) this.x -= worldWidth;
+        if (this.x < 0) this.x += worldWidth;
+
+        // 7. Terrain Collision
+        if (terrain) {
+            const ground = terrain.getHeightAt(this.x);
+            if (this.y + (this.size/2) >= ground.y) {
+                // Ground hit
+                this.y = ground.y - (this.size/2); // Snap to surface
+                this.vy = 0;
+
+                // Check landing conditions
+                const speedH = Math.abs(this.vx);
+                const angleDiff = Math.abs(this.angle - (-Math.PI/2));
+
+                // Landing threshold
+                if (ground.isPad && speedH < 1.5 && this.vy < 2.0 && angleDiff < 0.25) {
+                    this.landed = true;
+                } else {
+                    this.exploded = true;
+                }
+            }
+        }
+
+        // 8. Natural Cooling
+        this.heat -= 0.1 * step;
         if (this.heat < 0) this.heat = 0;
 
         if (this.heat >= this.maxHeat) {
@@ -105,7 +132,6 @@ export class Ship {
             ctx.lineTo(-this.size - (Math.random() * 10), 0);
             ctx.stroke();
         }
-
         ctx.restore();
     }
 }

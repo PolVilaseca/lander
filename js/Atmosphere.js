@@ -24,7 +24,6 @@ export class Atmosphere {
             if (layer.features.clouds) {
                 const cfg = layer.features.clouds;
                 const count = cfg.count || 10;
-
                 const opacity = cfg.opacity || 0.4;
                 const cloudColor = `rgba(120, 120, 120, ${opacity})`;
 
@@ -41,15 +40,10 @@ export class Atmosphere {
                     const width = minW + Math.random() * (maxW - minW);
                     const height = minH + Math.random() * (maxH - minH);
 
-                    // --- UPDATED SPEED LOGIC ---
+                    // Base speed = 50% wind speed
                     const windSpeed = layer.wind || 0;
-
-                    // Basis is HALF the wind speed
                     const baseSpeed = windSpeed * 0.5;
-
-                    // Variation (e.g., 0.8x to 1.2x of the base speed)
                     const speedVariation = 0.8 + Math.random() * 0.4;
-
                     const speed = baseSpeed * speedVariation;
 
                     particleSystem.createCloud(x, y, speed, cloudColor, width, height);
@@ -78,12 +72,15 @@ export class Atmosphere {
         });
     }
 
-    update(particleSystem, width, height) {
+    update(particleSystem, width, height, dt) {
+        const step = dt * 60;
+
         this.processedLayers.forEach(layer => {
-            // Wind particles still move at full wind speed to show the "force" of the wind
+            // Wind Particles
             if (Math.abs(layer.wind) > 0.5) {
+                // Chance adjusted by step so it's time-invariant
                 const chance = Math.abs(layer.wind) * 0.05;
-                if (Math.random() < chance) {
+                if (Math.random() < chance * step) {
                     const y = layer.topY + Math.random() * (layer.bottomY - layer.topY);
                     const x = Math.random() * width;
                     const alpha = Math.min(0.8, Math.abs(layer.wind) / 10);
@@ -92,13 +89,15 @@ export class Atmosphere {
                 }
             }
 
+            // Meteorite Spawning
             if (layer.features && layer.features.meteorites) {
                 const cfg = layer.features.meteorites;
-                if (Math.random() < (cfg.rate || 0.01)) {
+                const rate = cfg.rate || 0.01;
+                if (Math.random() < rate * step) {
                     const spawnY = -100;
                     const spawnX = Math.random() * width;
 
-                    const size = 5 + Math.random() * (cfg.maxSize - 5 || 10);
+                    const size = 5 + Math.random() * ((cfg.maxSize || 10) - 5);
 
                     const vxRange = cfg.velX || [-1, 1];
                     const vyRange = cfg.velY || [1, 3];

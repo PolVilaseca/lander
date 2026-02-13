@@ -1,5 +1,4 @@
 export class Particle {
-    // UPDATED: Now accepts 'height' as an optional parameter (default to null)
     constructor(x, y, vx, vy, life, color, size, type = 'square', zLayer = 0, height = null) {
         this.x = x;
         this.y = y;
@@ -8,25 +7,26 @@ export class Particle {
         this.life = life;
         this.maxLife = life;
         this.color = color;
-        this.size = size; // Treats 'size' as Width for clouds
-        this.height = height || size; // If no height provided, use size (square/circle)
+        this.size = size; // Width for clouds
+        this.height = height || size;
         this.type = type;
         this.zLayer = zLayer;
         this.alpha = 1;
     }
 
-    update() {
-        this.x += this.vx;
-        this.y += this.vy;
+    update(step) {
+        this.x += this.vx * step;
+        this.y += this.vy * step;
 
+        // Clouds and meteorites do not fade by time
         if (this.type !== 'cloud' && this.type !== 'meteorite') {
-            this.life--;
+            this.life -= step;
         }
 
         if (this.type === 'cloud' || this.type === 'meteorite') {
              this.alpha = 1;
         } else {
-             this.alpha = this.life / this.maxLife;
+             this.alpha = Math.max(0, this.life / this.maxLife);
         }
     }
 
@@ -47,13 +47,11 @@ export class Particle {
             ctx.fillRect(this.x, this.y, this.size, this.size);
 
         } else if (this.type === 'cloud') {
-            // NEW: Use separate width (this.size) and height (this.height)
             ctx.fillStyle = this.color;
-            const width = this.size;
-            const height = this.height;
-            ctx.fillRect(this.x - width/2, this.y - height/2, width, height);
+            ctx.fillRect(this.x - this.size/2, this.y - this.height/2, this.size, this.height);
 
         } else if (this.type === 'meteorite') {
+            // White circle, no fill
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -105,62 +103,59 @@ export class ParticleSystem {
 
     createFrictionSpark(x, y, vx, vy) {
         this.particles.push(new Particle(
-            x + (Math.random() - 0.5) * 20,
-            y + (Math.random() - 0.5) * 20,
-            vx, vy,
-            10 + Math.random() * 15,
-            'rgba(255, 220, 100, 1)',
-            6, 'spark', 0
+            x + (Math.random() - 0.5) * 15, // Tighter spread around the ship
+            y + (Math.random() - 0.5) * 15,
+            vx,
+            vy,
+            10 + Math.random() * 15, // Short life
+            'rgba(255, 200, 50, 1)', // Orange/Yellow spark
+            4,             // Particle size
+            'spark',       // Type
+            0              // zLayer
         ));
     }
 
-    // UPDATED: Now accepts height
     createCloud(x, y, speedX, color, width, height) {
         this.particles.push(new Particle(
             x, y, speedX, 0,
             Infinity,
-            color,
-            width, // Passes width as 'size'
-            'cloud',
-            1,
-            height // Passes explicit height
+            color, width, 'cloud', 1, height
         ));
     }
 
     createMeteorite(x, y, vx, vy, size) {
         this.particles.push(new Particle(
             x, y, vx, vy,
-            Infinity,
-            '#884400',
-            size,
-            'meteorite',
-            0
+            Infinity, '#ffffff', size, 'meteorite', 0
         ));
     }
 
-    update(gravity, worldWidth, atmosphere, terrain, ship) {
+    update(gravity, worldWidth, atmosphere, terrain, ship, dt) {
+        const step = dt * 60;
+
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
 
             if (p.type === 'square' || p.type === 'meteorite') {
-                p.vy += gravity;
+                p.vy += gravity * step;
             } else if (p.type === 'spark') {
-                p.vy += gravity * 0.1;
+                p.vy += gravity * 0.1 * step;
             }
 
-            p.update();
+            p.update(step);
 
             if (p.x > worldWidth) p.x -= worldWidth;
             else if (p.x < 0) p.x += worldWidth;
 
+            // METEORITE LOGIC
             if (p.type === 'meteorite') {
+                // 1. Friction Sparks
                 if (atmosphere) {
                     const layer = atmosphere.getLayerAt(p.y);
                     if (layer.viscosity > 0) {
                         const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
                         const heat = speed * layer.viscosity * 20;
-
-                        if (heat > 0.5 && Math.random() < heat) {
+                        if (heat > 0.5 && Math.random() < heat * step) {
                             const sparkVx = layer.wind + (Math.random()-0.5);
                             const sparkVy = -p.vy * 0.5;
                             this.createFrictionSpark(p.x, p.y, sparkVx, sparkVy);
@@ -168,6 +163,7 @@ export class ParticleSystem {
                     }
                 }
 
+                // 2. Terrain Collision
                 if (terrain) {
                     const ground = terrain.getHeightAt(p.x);
                     if (p.y + p.size >= ground.y) {
@@ -177,11 +173,11 @@ export class ParticleSystem {
                     }
                 }
 
-                if (ship && !ship.isDead) {
+                // 3. Ship Collision
+                if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;
                     const dy = p.y - ship.y;
                     const dist = Math.sqrt(dx*dx + dy*dy);
-
                     if (dist < (p.size + ship.size/2)) {
                         this.createExplosion(p.x, p.y, p.vx, p.vy, "#ff0000", 40);
                         ship.exploded = true;
@@ -189,6 +185,7 @@ export class ParticleSystem {
                     }
                 }
 
+                // Cleanup fall
                 if (p.y > 5000) p.life = 0;
             }
 
