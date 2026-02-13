@@ -27,7 +27,7 @@ export class Game {
         this.ship = null;
         this.terrain = null;
         this.atmosphere = null;
-        this.levelData = null; // Initialize to null
+        this.levelData = null;
 
         // UI
         this.uiFuel = document.getElementById('hud-fuel');
@@ -55,16 +55,23 @@ export class Game {
         this.canvas.height = Math.floor(this.screenHeight * dpr);
 
         // 5. Normalize Coordinate System
-        // We scale the context so 1 unit in code equals 1 CSS pixel,
-        // but it draws using the higher pixel density.
         this.ctx.scale(dpr, dpr);
+
+        // 6. Resize Background if it exists
+        if (this.background) {
+            this.background.resize(this.screenWidth, this.screenHeight);
+        }
     }
 
     start(levelData) {
-        this.resize(); // Ensure size is correct before starting
-
-        // FIX: Store levelData so update() can access gravity later
         this.levelData = levelData;
+
+        // Stars need screen dimensions
+        // We create it before resize() ensures it has data,
+        // but resize() will be called immediately after.
+        this.background = new Background(window.innerWidth, window.innerHeight);
+
+        this.resize(); // Ensure size is correct
 
         this.worldWidth = levelData.width;
         this.worldHeight = levelData.height;
@@ -76,9 +83,6 @@ export class Game {
         this.ship = new Ship(startPos.x, startPos.y);
         if (startPos.angle !== undefined) this.ship.angle = startPos.angle;
         if (startPos.vx !== undefined) this.ship.vx = startPos.vx;
-
-        // Stars need screen dimensions to know where to wrap
-        this.background = new Background(this.screenWidth, this.screenHeight);
 
         this.particles.clear();
         this.atmosphere.initFeatures(this.particles, this.worldWidth);
@@ -95,14 +99,11 @@ export class Game {
     loop(timestamp) {
         if (!this.active) return;
 
-        // Safety for first frame to prevent huge dt
         if (!this.lastTime) this.lastTime = timestamp;
 
-        // Calculate Delta Time (Seconds passed)
         let dt = (timestamp - this.lastTime) / 1000;
         this.lastTime = timestamp;
 
-        // Cap dt to prevent spiraling physics if tab is inactive
         if (dt > 0.1) dt = 0.016;
 
         this.update(dt);
@@ -118,7 +119,7 @@ export class Game {
         // 1. Update Ship
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
-        // 2. NEW: Generate Friction Sparks for the Ship
+        // 2. Friction Sparks
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -126,10 +127,8 @@ export class Game {
                 const relativeVy = this.ship.vy;
                 const speed = Math.sqrt(relativeVx * relativeVx + relativeVy * relativeVy);
 
-                // Only spawn sparks if moving fast enough through thick air
-                const sparkChance = speed * layer.viscosity * 4.0;
+                const sparkChance = speed * layer.viscosity * 4;
                 if (Math.random() < sparkChance * step) {
-                    // Create spark traveling opposite to ship direction
                     this.particles.createFrictionSpark(
                         this.ship.x,
                         this.ship.y,
@@ -144,7 +143,6 @@ export class Game {
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
 
-        // ... rest of update (camera, death checks, UI) remains the same ...
         this.camera.x = this.ship.x - this.screenWidth / 2;
         this.camera.y = this.ship.y - this.screenHeight / 2;
 
@@ -165,7 +163,6 @@ export class Game {
         if (this.uiFuel) this.uiFuel.innerText = Math.floor(this.ship.fuel);
 
         if (this.uiHeat) {
-            // Text Color based on heat
             const heatPct = (this.ship.heat / this.ship.maxHeat);
             this.uiHeat.innerText = Math.floor(this.ship.heat);
             if (heatPct > 0.8) this.uiHeat.style.color = '#ff0000';
@@ -181,12 +178,11 @@ export class Game {
     }
 
     draw() {
-        // Clear using logical coordinates (screenWidth is CSS pixels)
         this.ctx.clearRect(0, 0, this.screenWidth, this.screenHeight);
 
-        // 1. Draw Background (Screen Space)
+        // 1. Draw Background (Static - No camera args needed)
         if (this.background) {
-            this.background.draw(this.ctx, this.camera.x, this.camera.y);
+            this.background.draw(this.ctx);
         }
 
         // 2. Draw World (Camera Space)
@@ -198,20 +194,19 @@ export class Game {
             this.ctx.translate(offsetX - cameraX, -cameraY);
 
             if (this.atmosphere) this.atmosphere.draw(this.ctx, this.worldWidth);
-            this.particles.draw(this.ctx, 1); // Background particles
+            this.particles.draw(this.ctx, 1);
             if (this.terrain) this.terrain.draw(this.ctx);
-            this.particles.draw(this.ctx, 0); // Foreground particles
+            this.particles.draw(this.ctx, 0);
             if (!this.ship.isDead) this.ship.draw(this.ctx);
 
             this.ctx.restore();
         };
 
-        // Render World & Wraps
         drawWorldLayer(0);
         if (this.ship.x < this.screenWidth) drawWorldLayer(-this.worldWidth);
         if (this.ship.x > this.worldWidth - this.screenWidth) drawWorldLayer(this.worldWidth);
 
-        // 3. Draw UI (Screen Space)
+        // 3. Draw UI
         this.drawRadar();
     }
 
@@ -222,14 +217,12 @@ export class Game {
         const radarX = centerX - (radarW / 2);
         const radarY = 40;
 
-        // Radar Box
         this.ctx.fillStyle = "rgba(0, 40, 0, 0.6)";
         this.ctx.fillRect(radarX, radarY, radarW, radarH);
         this.ctx.strokeStyle = "#00ff00";
         this.ctx.lineWidth = 1;
         this.ctx.strokeRect(radarX, radarY, radarW, radarH);
 
-        // Pads
         this.ctx.fillStyle = "#ffffff";
         if (this.terrain) {
             this.terrain.pads.forEach(pad => {
@@ -238,12 +231,10 @@ export class Game {
             });
         }
 
-        // Ship Blip
         const shipX = (this.ship.x / this.worldWidth) * radarW;
         this.ctx.fillStyle = "#00ff00";
         this.ctx.fillRect(radarX + shipX - 1, radarY - 4, 2, 18);
 
-        // Text Info
         this.ctx.font = "bold 16px Courier New";
         this.ctx.textAlign = "center";
         let layerName = "SPACE";
@@ -252,14 +243,12 @@ export class Game {
             layerName = currentLayer.name.toUpperCase();
         }
 
-        // Outline text
         this.ctx.lineWidth = 4;
         this.ctx.strokeStyle = "black";
         this.ctx.strokeText(layerName, centerX, radarY + 35);
         this.ctx.fillStyle = "white";
         this.ctx.fillText(layerName, centerX, radarY + 35);
 
-        // Speed Indicators
         this.ctx.font = "14px Courier New";
 
         this.ctx.textAlign = "right";

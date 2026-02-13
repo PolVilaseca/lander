@@ -54,9 +54,19 @@
               }
           }
         },
-        { "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.0025, "wind": 5 }
+        {
+          "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0, "wind": 0,
+          "features": {
+            "space_debris": {
+              "count": 50,
+              "minSize": 10, "maxSize": 25,
+              "speed": 5.0,
+              "minAltitude": 1400, "maxAltitude": 1700
+            }
+          }
+        }
       ],
-      "ship_start": { "x": 500, "y": 100, "vx": -50, "angle": 0 }
+      "ship_start": { "x": 500, "y": 100, "vx": 0, "angle": 0 }
     },
     {
       "id": 4,
@@ -81,10 +91,6 @@
         }
       ]
     },
-
-
-
-
     {
       "id": 5,
       "name": "Mars (Meteorites)",
@@ -96,7 +102,7 @@
       "terrain": { "roughness": 250, "flat_spots": 2 },
       "atmosphere": [
         { "name": "Thin Atmosphere", "height": 1000, "color": "rgba(255, 100, 50, 0.1)", "viscosity": 0.005, "wind": 2.0 },
-        { "name": "Dust Layer", "height": 500, "color": "rgba(200, 50, 0, 0.2)", "viscosity": 0.02, "wind": 5.0 },
+        { "name": "Dust Layer", "height": 500, "color": "rgba(200, 50, 0, 0.2)", "viscosity": 0.01, "wind": 5.0 },
         {
           "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0,
           "features": {
@@ -135,6 +141,40 @@
         { "name": "Upper Atmosphere", "height": 600, "color": "rgba(100, 100, 255, 0.1)", "viscosity": 0.01, "wind": 4.0 },
         { "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0.0, "wind": 0.0 }
       ]
+    },
+    {
+      "id": 7,
+      "name": "Earth Re/entry",
+      "width": 3000,
+      "height": 1500,
+      "gravity": 0.06,
+      "color": "#ccaa00",
+      "terrain": { "roughness": 100, "flat_spots": 1 },
+      "atmosphere": [
+        {"name": "Troposphere", "height": 800, "color": "rgba(0, 0, 255, 0.2)", "viscosity": 0.005, "wind": 0.5,
+          "features": {
+              "clouds": {
+                  "count": 30,
+                  "minWidth": 180, "maxWidth": 300,
+                  "minHeight": 40, "maxHeight": 80,
+                  "opacity": 0.6
+              }
+          }
+        },
+        {"name": "Stratosphere", "height": 500, "color": "rgba(0, 0, 255, 0.1)", "viscosity": 0.001, "wind": -5,
+          "features": {
+              "clouds": {
+                  "count": 5,
+                  "minWidth": 300, "maxWidth": 800,
+                  "minHeight": 10, "maxHeight": 40,
+                  "opacity": 0.2
+              }
+          }
+        },
+        { "name": "Mesosphere", "height": 500, "color": "rgba(0, 17, 51, 0.4)", "viscosity": 0.0025, "wind": -2 },
+        { "name": "Thermosphere", "height": 500, "color": "rgba(26, 0, 51, 0.4)", "viscosity": 0.005, "wind": -1 }
+      ],
+      "ship_start": { "x": 0, "y": -1250, "vx": 50, "angle": 0 }
     }
   ]
 }

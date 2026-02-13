@@ -1,5 +1,5 @@
 export class Particle {
-    constructor(x, y, vx, vy, life, color, size, type = 'square', zLayer = 0, height = null) {
+    constructor(x, y, vx, vy, life, color, size, type = 'square', zLayer = 0, height = null, angle = 0, rotationSpeed = 0) {
         this.x = x;
         this.y = y;
         this.vx = vx;
@@ -12,18 +12,23 @@ export class Particle {
         this.type = type;
         this.zLayer = zLayer;
         this.alpha = 1;
+
+        // Rotation
+        this.angle = angle;
+        this.rotationSpeed = rotationSpeed;
     }
 
     update(step) {
         this.x += this.vx * step;
         this.y += this.vy * step;
+        this.angle += this.rotationSpeed * step;
 
-        // Clouds and meteorites do not fade by time
-        if (this.type !== 'cloud' && this.type !== 'meteorite') {
+        // Infinite life for persistent objects
+        if (this.type !== 'cloud' && this.type !== 'meteorite' && this.type !== 'debris') {
             this.life -= step;
         }
 
-        if (this.type === 'cloud' || this.type === 'meteorite') {
+        if (this.type === 'cloud' || this.type === 'meteorite' || this.type === 'debris') {
              this.alpha = 1;
         } else {
              this.alpha = Math.max(0, this.life / this.maxLife);
@@ -33,6 +38,13 @@ export class Particle {
     draw(ctx) {
         ctx.save();
         ctx.globalAlpha = this.alpha;
+
+        // Apply rotation for rotating particles
+        if (this.rotationSpeed !== 0) {
+            ctx.translate(this.x, this.y);
+            ctx.rotate(this.angle);
+            ctx.translate(-this.x, -this.y);
+        }
 
         if (this.type === 'line') {
             ctx.strokeStyle = this.color;
@@ -51,12 +63,17 @@ export class Particle {
             ctx.fillRect(this.x - this.size/2, this.y - this.height/2, this.size, this.height);
 
         } else if (this.type === 'meteorite') {
-            // White circle, no fill
             ctx.strokeStyle = '#ffffff';
             ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
             ctx.stroke();
+
+        } else if (this.type === 'debris') {
+            // NEW: White Square Stroke, Rotated (handled by ctx transform above)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
 
         } else {
             ctx.fillStyle = this.color;
@@ -103,15 +120,12 @@ export class ParticleSystem {
 
     createFrictionSpark(x, y, vx, vy) {
         this.particles.push(new Particle(
-            x + (Math.random() - 0.5) * 15, // Tighter spread around the ship
+            x + (Math.random() - 0.5) * 15,
             y + (Math.random() - 0.5) * 15,
-            vx,
-            vy,
-            10 + Math.random() * 15, // Short life
-            'rgba(255, 200, 50, 1)', // Orange/Yellow spark
-            4,             // Particle size
-            'spark',       // Type
-            0              // zLayer
+            vx, vy,
+            10 + Math.random() * 15,
+            'rgba(255, 200, 50, 1)',
+            4, 'spark', 0
         ));
     }
 
@@ -130,12 +144,32 @@ export class ParticleSystem {
         ));
     }
 
+    // NEW: Space Debris
+    createSpaceDebris(x, y, vx, size) {
+        // Random initial rotation and rotation speed
+        const angle = Math.random() * Math.PI * 2;
+        const rotSpeed = (Math.random() - 0.5) * 0.1;
+
+        this.particles.push(new Particle(
+            x, y, vx, 0, // No vertical velocity
+            Infinity,
+            '#ffffff',
+            size,
+            'debris',
+            0, // Background layer
+            null,
+            angle,
+            rotSpeed
+        ));
+    }
+
     update(gravity, worldWidth, atmosphere, terrain, ship, dt) {
         const step = dt * 60;
 
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
 
+            // Apply Gravity (Debris is not affected)
             if (p.type === 'square' || p.type === 'meteorite') {
                 p.vy += gravity * step;
             } else if (p.type === 'spark') {
@@ -149,7 +183,6 @@ export class ParticleSystem {
 
             // METEORITE LOGIC
             if (p.type === 'meteorite') {
-                // 1. Friction Sparks
                 if (atmosphere) {
                     const layer = atmosphere.getLayerAt(p.y);
                     if (layer.viscosity > 0) {
@@ -163,7 +196,6 @@ export class ParticleSystem {
                     }
                 }
 
-                // 2. Terrain Collision
                 if (terrain) {
                     const ground = terrain.getHeightAt(p.x);
                     if (p.y + p.size >= ground.y) {
@@ -173,7 +205,7 @@ export class ParticleSystem {
                     }
                 }
 
-                // 3. Ship Collision
+                // Meteorite Ship Collision
                 if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;
                     const dy = p.y - ship.y;
@@ -184,9 +216,29 @@ export class ParticleSystem {
                         p.life = 0;
                     }
                 }
-
-                // Cleanup fall
                 if (p.y > 5000) p.life = 0;
+            }
+
+            // DEBRIS LOGIC
+            if (p.type === 'debris') {
+                // Debris Ship Collision
+                if (ship && !ship.isDead && !ship.landed) {
+                    // Simple AABB or Circle collision. Debris is rotating square, use Circle approx
+                    const dx = p.x - ship.x;
+                    const dy = p.y - ship.y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+
+                    // Box roughly size*size, ship size*size.
+                    // Use somewhat generous radius to cover rotation corners
+                    if (dist < (p.size * 0.7 + ship.size * 0.6)) {
+                        this.createExplosion(p.x, p.y, p.vx, p.vy, "#ff0000", 40);
+                        ship.exploded = true;
+                        // Debris also explodes? "if they collide with the ship, both explode"
+                        // Trigger explosion at debris location
+                        this.createExplosion(p.x, p.y, -p.vx*0.5, p.vy*0.5, "#ffffff", 15);
+                        p.life = 0;
+                    }
+                }
             }
 
             if (p.life <= 0) {

@@ -21,6 +21,7 @@ export class Atmosphere {
         this.processedLayers.forEach(layer => {
             if (!layer.features) return;
 
+            // 1. CLOUDS
             if (layer.features.clouds) {
                 const cfg = layer.features.clouds;
                 const count = cfg.count || 10;
@@ -40,13 +41,39 @@ export class Atmosphere {
                     const width = minW + Math.random() * (maxW - minW);
                     const height = minH + Math.random() * (maxH - minH);
 
-                    // Base speed = 50% wind speed
                     const windSpeed = layer.wind || 0;
                     const baseSpeed = windSpeed * 0.5;
                     const speedVariation = 0.8 + Math.random() * 0.4;
                     const speed = baseSpeed * speedVariation;
 
                     particleSystem.createCloud(x, y, speed, cloudColor, width, height);
+                }
+            }
+
+            // 2. SPACE DEBRIS
+            if (layer.features.space_debris) {
+                const cfg = layer.features.space_debris;
+                const count = cfg.count || 10;
+                const minAlt = cfg.minAltitude || 0;
+                const maxAlt = cfg.maxAltitude || 100;
+
+                // Convert Altitude to Y
+                // Altitude 0 = gameHeight. Altitude Max = 0.
+                // Y = gameHeight - Altitude
+                const minSpawnY = this.gameHeight - maxAlt;
+                const maxSpawnY = this.gameHeight - minAlt;
+
+                for(let i=0; i<count; i++) {
+                    const x = Math.random() * worldWidth;
+                    const y = minSpawnY + Math.random() * (maxSpawnY - minSpawnY);
+
+                    const size = cfg.minSize + Math.random() * (cfg.maxSize - cfg.minSize);
+
+                    // Speed variation (0.8x to 1.2x)
+                    const baseSpeed = cfg.speed || 0;
+                    const speed = baseSpeed * (0.8 + Math.random() * 0.4);
+
+                    particleSystem.createSpaceDebris(x, y, speed, size);
                 }
             }
         });
@@ -78,7 +105,6 @@ export class Atmosphere {
         this.processedLayers.forEach(layer => {
             // Wind Particles
             if (Math.abs(layer.wind) > 0.5) {
-                // Chance adjusted by step so it's time-invariant
                 const chance = Math.abs(layer.wind) * 0.05;
                 if (Math.random() < chance * step) {
                     const y = layer.topY + Math.random() * (layer.bottomY - layer.topY);
@@ -96,15 +122,11 @@ export class Atmosphere {
                 if (Math.random() < rate * step) {
                     const spawnY = -100;
                     const spawnX = Math.random() * width;
-
                     const size = 5 + Math.random() * ((cfg.maxSize || 10) - 5);
-
                     const vxRange = cfg.velX || [-1, 1];
                     const vyRange = cfg.velY || [1, 3];
-
                     const vx = vxRange[0] + Math.random() * (vxRange[1] - vxRange[0]);
                     const vy = vyRange[0] + Math.random() * (vyRange[1] - vyRange[0]);
-
                     particleSystem.createMeteorite(spawnX, spawnY, vx, vy, size);
                 }
             }
