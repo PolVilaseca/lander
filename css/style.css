@@ -42,20 +42,51 @@ body {
 }
 
 /* TITLE styling (Top Left, Smaller, Neon) */
+/* REPLACE the previous #menu-screen h1 block with this: */
+
 #menu-screen h1 {
     position: absolute;
-    top: 20px;
-    left: 30px;
+    top: 30px;
+    left: 40px;
     margin: 0;
 
-    font-size: 40px;
-    text-align: left;
-    color: #fff;
-    text-shadow: 0 0 10px #00ff00, 0 0 20px #00ff00; /* Neon Glow */
+    /* Typography */
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 32px;
+    font-weight: bold;
+    letter-spacing: 4px;
 
-    /* Re-enable clicks on the title (optional, but good practice) */
+    /* UNIFIED COLOR: Green text to match system text */
+    color: #00ff00;
+
+    /* BORDER FIX: Uniform border width everywhere */
+    border: 2px solid rgba(0, 255, 0, 0.5);
+    /* Optional: If you still want the left bar to be thicker like a bracket, keep this line.
+       If you want it perfectly equal all around, remove this line.
+       I will make it slightly thicker (4px) but ensure it doesn't break the box model */
+    /*border-left: 4px solid #00ff00;*/
+
+    padding: 10px 20px;
+    background: rgba(0, 20, 0, 0.6);
+
+    /* Glow */
+    text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+    box-shadow: 0 0 15px rgba(0, 255, 0, 0.2);
+
+    /* Interaction */
     pointer-events: auto;
     z-index: 10;
+}
+
+/* Add the "System Online" sub-text using CSS so we don't need to change HTML */
+#menu-screen h1::after {
+    content: "SYSTEM: ONLINE // V1.0";
+    display: block;
+    font-size: 10px;
+    color: #00ff00;
+    margin-top: 5px;
+    letter-spacing: 2px;
+    opacity: 0.8;
 }
 
 /* Hide the old instruction text ("Select a level") */
