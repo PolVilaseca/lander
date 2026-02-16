@@ -14,7 +14,7 @@ export class SolarSystemMenu {
         // Visual Settings
         this.sun = { radius: 35, color: '#ffaa00', glow: '#ff5500' };
 
-        // Generate static stars for background
+        // Background Stars
         this.stars = [];
         for(let i=0; i<150; i++) {
             this.stars.push({
@@ -25,8 +25,8 @@ export class SolarSystemMenu {
             });
         }
 
-        // Define Planets (All 7 Levels)
-        // Orbits spaced by ~35-40px to fit on standard screens
+        // Define Planets (7 Levels)
+        // UPDATES: Slower speeds (approx half) and wider orbit spacing (+20-30px each)
         this.planets = [
             {
                 id: 1,
@@ -34,8 +34,8 @@ export class SolarSystemMenu {
                 desc: "Training Ground.\nLow Gravity.",
                 color: "#bbbbbb",
                 radius: 10,
-                orbitRadius: 85,
-                speed: 0.008,
+                orbitRadius: 100, // Was 85
+                speed: 0.004,     // Was 0.008
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -45,8 +45,8 @@ export class SolarSystemMenu {
                 desc: "Standard Mission.\nDusty surface.",
                 color: "#eeeeee",
                 radius: 11,
-                orbitRadius: 120,
-                speed: 0.006,
+                orbitRadius: 140, // Was 120
+                speed: 0.003,     // Was 0.006
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -56,8 +56,8 @@ export class SolarSystemMenu {
                 desc: "High Gravity.\nRugged Terrain.",
                 color: "#cc5500",
                 radius: 13,
-                orbitRadius: 155,
-                speed: 0.005,
+                orbitRadius: 180, // Was 155
+                speed: 0.0025,    // Was 0.005
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -67,8 +67,8 @@ export class SolarSystemMenu {
                 desc: "Thick Atmosphere.\nWind Hazards.",
                 color: "#4488ff",
                 radius: 14,
-                orbitRadius: 190,
-                speed: 0.004,
+                orbitRadius: 220, // Was 190
+                speed: 0.002,     // Was 0.004
                 angle: Math.random() * 6.28,
                 moons: [{ radius: 3, orbitRadius: 25, speed: 0.05, angle: 0, color: "#fff" }]
             },
@@ -78,8 +78,8 @@ export class SolarSystemMenu {
                 desc: "Meteor Showers.\nExtreme Danger.",
                 color: "#ff3300",
                 radius: 12,
-                orbitRadius: 225,
-                speed: 0.0035,
+                orbitRadius: 260, // Was 225
+                speed: 0.0018,    // Was 0.0035
                 angle: Math.random() * 6.28,
                 moons: [
                     { radius: 3, orbitRadius: 20, speed: 0.04, angle: 0, color: "#ccaa88" },
@@ -92,8 +92,8 @@ export class SolarSystemMenu {
                 desc: "Acid Clouds.\nHigh Pressure.",
                 color: "#eebb00",
                 radius: 15,
-                orbitRadius: 265,
-                speed: 0.0025,
+                orbitRadius: 300, // Was 265
+                speed: 0.0012,    // Was 0.0025
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -103,8 +103,8 @@ export class SolarSystemMenu {
                 desc: "Re-entry Mission.\nHome Base.",
                 color: "#00bbff",
                 radius: 16,
-                orbitRadius: 305,
-                speed: 0.002,
+                orbitRadius: 340, // Was 305
+                speed: 0.001,     // Was 0.002
                 angle: Math.random() * 6.28,
                 moons: [{ radius: 4, orbitRadius: 28, speed: 0.06, angle: 1, color: "#cccccc" }]
             }
@@ -229,13 +229,13 @@ export class SolarSystemMenu {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // 0. Background
+        // Background
         this.ctx.fillStyle = "#020205";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.save();
 
-        // 0.1 Stars
+        // Stars
         this.ctx.fillStyle = "#ffffff";
         this.stars.forEach(star => {
             this.ctx.globalAlpha = star.alpha;
@@ -247,9 +247,9 @@ export class SolarSystemMenu {
         });
         this.ctx.globalAlpha = 1.0;
 
-        // 1. Orbits (Dashed)
+        // Orbits (Dashed)
         this.ctx.lineWidth = 1;
-        this.ctx.setLineDash([3, 10]); // Tighter dash for denser orbits
+        this.ctx.setLineDash([3, 10]);
         this.planets.forEach(p => {
             this.ctx.strokeStyle = p.color;
             this.ctx.globalAlpha = 0.25;
@@ -260,7 +260,7 @@ export class SolarSystemMenu {
         this.ctx.setLineDash([]);
         this.ctx.globalAlpha = 1.0;
 
-        // 2. Sun
+        // Sun
         this.ctx.shadowBlur = 60;
         this.ctx.shadowColor = this.sun.glow;
         this.ctx.fillStyle = this.sun.color;
@@ -269,7 +269,7 @@ export class SolarSystemMenu {
         this.ctx.fill();
         this.ctx.shadowBlur = 0;
 
-        // 3. Planets
+        // Planets
         this.planets.forEach(p => {
             this.ctx.shadowBlur = 15;
             this.ctx.shadowColor = p.color;
@@ -281,7 +281,7 @@ export class SolarSystemMenu {
 
             this.ctx.shadowBlur = 0;
 
-            // Selection Ring
+            // Selection
             if (this.selectedPlanet === p && this.pulseAnim > 0) {
                 this.ctx.strokeStyle = "white";
                 this.ctx.lineWidth = 2;
@@ -309,7 +309,7 @@ export class SolarSystemMenu {
             }
         });
 
-        // 4. Info Box
+        // Info Box
         if (this.selectedPlanet) {
             this.drawInfoBox(this.selectedPlanet);
         }
@@ -338,7 +338,7 @@ export class SolarSystemMenu {
         this.ctx.arc(p.currentX + p.radius + 5, p.currentY, 2, 0, Math.PI*2);
         this.ctx.fill();
 
-        // Box Background
+        // Box
         this.ctx.fillStyle = "rgba(0, 20, 40, 0.85)";
         this.ctx.beginPath();
         this.ctx.rect(targetX, targetY, boxW, boxH);
@@ -350,11 +350,9 @@ export class SolarSystemMenu {
         const bracketLen = 20;
 
         this.ctx.beginPath();
-        // Top Left
         this.ctx.moveTo(targetX, targetY + bracketLen);
         this.ctx.lineTo(targetX, targetY);
         this.ctx.lineTo(targetX + bracketLen, targetY);
-        // Bottom Right
         this.ctx.moveTo(targetX + boxW - bracketLen, targetY + boxH);
         this.ctx.lineTo(targetX + boxW, targetY + boxH);
         this.ctx.lineTo(targetX + boxW, targetY + boxH - bracketLen);
