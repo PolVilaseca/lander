@@ -33,7 +33,7 @@
       "start_on_ground": true,
       "terrain": { "roughness": 50, "flat_spots": 3 },
       "space_stations": [
-        { "altitude": 2000, "size": 100, "speed": 1.5 }
+        { "altitude": 1600, "size": 100, "speed": 1.5 }
       ],
       "atmosphere": [
         {
@@ -59,18 +59,18 @@
           }
         },
         {
-          "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0, "wind": 0,
+          "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.0025, "wind": 5,
           "features": {
             "space_debris": {
-              "count": 50,
+              "count": 15,
               "minSize": 10, "maxSize": 25,
-              "speed": 5.0,
+              "speed": 4.0,
               "minAltitude": 1400, "maxAltitude": 1700
             }
           }
         }
       ],
-      "ship_start": { "x": 500, "y": 100, "vx": 0, "angle": 0 }
+      "ship_start": { "x": 500, "y": 100, "vx": -50, "angle": 0 }
     },
     {
       "id": 4,
@@ -140,6 +140,10 @@
                   "minHeight": 50, "maxHeight": 100,
                   "opacity": 0.6
               }
+          },
+          "lightning": {
+            "frequency": 0.012,
+            "radius": 300
           }
         },
         { "name": "Upper Atmosphere", "height": 600, "color": "rgba(100, 100, 255, 0.1)", "viscosity": 0.01, "wind": 4.0 },
