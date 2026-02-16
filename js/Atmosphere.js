@@ -6,28 +6,22 @@ class Lightning {
 
         this.state = 'charging'; // 'charging' | 'striking' | 'done'
         this.timer = 0;
-        this.chargeDuration = 3.0; // 3 seconds warning
-        this.strikeDuration = 0.5; // 0.5 seconds deadly
+        this.chargeDuration = 1.5;
+        this.strikeDuration = 0.5;
 
-        this.bolts = []; // Array of line segments
-        this.glowAlpha = 0;
+        this.bolts = [];
     }
 
     update(dt) {
         this.timer += dt;
 
         if (this.state === 'charging') {
-            // Pulse the glow
-            const progress = this.timer / this.chargeDuration;
-            this.glowAlpha = Math.max(0, Math.min(1, progress * 0.8 + Math.sin(this.timer * 10) * 0.1));
-
             if (this.timer >= this.chargeDuration) {
                 this.state = 'striking';
                 this.timer = 0;
                 this.generateGeometry();
             }
         } else if (this.state === 'striking') {
-            this.glowAlpha = 1.0;
             if (this.timer >= this.strikeDuration) {
                 this.state = 'done';
             }
@@ -36,13 +30,10 @@ class Lightning {
 
     generateGeometry() {
         this.bolts = [];
-        // MINIMALIST: Fewer bolts (2), radiating out
-        const numMainBolts = 2;
+        const numMainBolts = 4 + Math.floor(Math.random() * 3);
 
         for (let i = 0; i < numMainBolts; i++) {
-            // Random start angle, spread evenly
             const angle = (Math.PI * 2 * i) / numMainBolts + (Math.random() - 0.5) * 1.0;
-            // Fewer generations (4 instead of 5) for less clutter
             this.createBoltBranch(this.x, this.y, angle, this.maxRadius, 4);
         }
     }
@@ -50,82 +41,133 @@ class Lightning {
     createBoltBranch(x, y, angle, length, generation) {
         if (generation <= 0) return;
 
-        // MINIMALIST: More ZigZag (Jitter)
-        const jitter = (Math.random() - 0.5) * 1.5; // High angular variance
+        // High Zig-Zag Jitter
+        const jitter = (Math.random() - 0.5) * 2.5;
         const newAngle = angle + jitter;
 
-        // MINIMALIST: Longer segments (60-90% of length)
-        const segmentLen = length * (0.6 + Math.random() * 0.3);
+        const segmentLen = length * (0.5 + Math.random() * 0.3);
 
         const x2 = x + Math.cos(newAngle) * segmentLen;
         const y2 = y + Math.sin(newAngle) * segmentLen;
 
-        // Thicker lines for minimal style
         const width = generation === 4 ? 3 : (generation === 3 ? 2 : 1);
 
         this.bolts.push({ x1: x, y1: y, x2: x2, y2: y2, width: width });
 
-        // MINIMALIST: Branching is rarer (30% chance)
-        const branches = Math.random() < 0.3 ? 2 : 1;
+        const branches = Math.random() < 0.4 ? 2 : 1;
 
         for (let i = 0; i < branches; i++) {
-             // Spread logic
              const spread = (i === 0) ? 0 : (Math.random() - 0.5) * 1.0;
-             // Length decays faster (0.6x)
              this.createBoltBranch(x2, y2, angle + spread, length * 0.6, generation - 1);
         }
     }
 
     draw(ctx) {
         ctx.save();
+        ctx.translate(this.x, this.y);
 
-        // 1. Draw Glow (Charging & Striking)
-        if (this.glowAlpha > 0) {
-            const gradient = ctx.createRadialGradient(this.x, this.y, 10, this.x, this.y, this.maxRadius);
-            gradient.addColorStop(0, `rgba(255, 255, 255, ${this.glowAlpha})`);
-            gradient.addColorStop(0.4, `rgba(100, 200, 255, ${this.glowAlpha * 0.5})`);
-            gradient.addColorStop(1, `rgba(100, 200, 255, 0)`);
+        // 1. Draw Flickering Glow (Charging)
+        if (this.state === 'charging') {
+            const progress = this.timer / this.chargeDuration;
 
-            ctx.fillStyle = gradient;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.maxRadius, 0, Math.PI * 2);
-            ctx.fill();
-        }
+            // Calculate Flicker
+            let alpha = progress * 0.3;
+            if (Math.random() < 0.2 + (progress * 0.6)) {
+                alpha += Math.random() * 0.5;
+            }
 
-        // 2. Draw Bolts (Striking only)
-        if (this.state === 'striking') {
-            if (Math.random() > 0.1) { // High frequency flicker
-                ctx.strokeStyle = "#ffffff";
-                ctx.lineCap = "square"; // Vector style caps
-                ctx.shadowColor = "#ccffff"; // Slightly cooler glow
-                ctx.shadowBlur = 8; // Crisper glow
+            if (alpha > 0) {
+                const r = this.maxRadius * (0.8 + Math.random() * 0.3);
 
-                this.bolts.forEach(bolt => {
-                    ctx.lineWidth = bolt.width;
-                    ctx.beginPath();
-                    ctx.moveTo(bolt.x1, bolt.y1);
-                    ctx.lineTo(bolt.x2, bolt.y2);
-                    ctx.stroke();
-                });
+                const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+                gradient.addColorStop(0, `rgba(255, 255, 255, ${alpha})`);
+                gradient.addColorStop(0.3, `rgba(100, 255, 255, ${alpha * 0.6})`);
+                gradient.addColorStop(1, "rgba(0, 0, 0, 0)");
 
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(0, 0, r, 0, Math.PI * 2);
+                ctx.fill();
             }
         }
 
+        // 2. Draw Bolts (Striking)
+        if (this.state === 'striking') {
+            ctx.globalAlpha = 1.0;
+            // Flash center
+            ctx.fillStyle = "#ffffff";
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI*2);
+            ctx.fill();
+        }
         ctx.restore();
+
+        // Draw Bolts in World Space
+        if (this.state === 'striking' && Math.random() > 0.1) {
+             ctx.save();
+             ctx.strokeStyle = "#ffffff";
+             ctx.lineCap = "square";
+             ctx.shadowColor = "#ccffff";
+             ctx.shadowBlur = 8;
+
+             this.bolts.forEach(bolt => {
+                 ctx.lineWidth = bolt.width;
+                 ctx.beginPath();
+                 ctx.moveTo(bolt.x1, bolt.y1);
+                 ctx.lineTo(bolt.x2, bolt.y2);
+                 ctx.stroke();
+             });
+             ctx.restore();
+        }
     }
 
+    // UPDATED: Precise Collision Detection
     checkCollision(ship) {
         if (this.state !== 'striking') return false;
 
-        const dx = ship.x - this.x;
-        const dy = ship.y - this.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
+        // Iterate through all actual bolt segments
+        for (let bolt of this.bolts) {
+            // Distance from ship center to line segment
+            const dist = this.pointLineDistance(ship.x, ship.y, bolt.x1, bolt.y1, bolt.x2, bolt.y2);
 
-        if (dist < this.maxRadius * 0.9) {
-            return true;
+            // Allow a small margin (ship size + bolt width + wiggle room)
+            if (dist < (ship.size / 2) + bolt.width + 2) {
+                return true;
+            }
         }
         return false;
+    }
+
+    // Helper: Distance from point (px,py) to segment (x1,y1)-(x2,y2)
+    pointLineDistance(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+
+        if (lenSq !== 0) // Avoid divide by zero
+            param = dot / lenSq;
+
+        let xx, yy;
+
+        if (param < 0) {
+            xx = x1;
+            yy = y1;
+        } else if (param > 1) {
+            xx = x2;
+            yy = y2;
+        } else {
+            xx = x1 + param * C;
+            yy = y1 + param * D;
+        }
+
+        const dx = px - xx;
+        const dy = py - yy;
+        return Math.sqrt(dx * dx + dy * dy);
     }
 }
 
@@ -241,7 +283,7 @@ export class Atmosphere {
             const y = this.worldHeight - currentAlt - height;
 
             ctx.fillStyle = layer.color;
-            ctx.fillRect(0, y, worldWidth, height); // Corrected width
+            ctx.fillRect(0, y, worldWidth, height);
             currentAlt += height;
         });
 
