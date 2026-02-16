@@ -12,7 +12,8 @@ const levelList = document.getElementById('level-list');
 const canvas = document.getElementById('gameCanvas');
 const btnRetry = document.getElementById('btn-retry');
 const btnHome = document.getElementById('btn-home');
-const hud = document.getElementById('hud');
+
+// Removed: const hud = document.getElementById('hud'); // No longer exists in HTML
 
 const game = new Game(canvas);
 let solarSystem = null;
@@ -38,7 +39,6 @@ function initDebugMenu() {
     levelList.innerHTML = '';
     levelList.style.display = 'block';
 
-    // Ensure instruction text is visible
     const instructionText = menuScreen.querySelector('p');
     if(instructionText) instructionText.style.display = 'block';
 
@@ -52,20 +52,11 @@ function initDebugMenu() {
 }
 
 function initSolarSystemMenu() {
-    // Hide old debug UI
     levelList.style.display = 'none';
 
-    // Hide "Select a level" text
     const instructionText = menuScreen.querySelector('p');
     if(instructionText) instructionText.style.display = 'none';
 
-    // Center the Title manually via CSS injection (or you can do this in style.css)
-  /*  const title = menuScreen.querySelector('h1');
-    if(title) {
-        title.style.textAlign = 'center';
-        title.style.marginTop = '40px';
-    }
-*/
     solarSystem = new SolarSystemMenu(canvas, (levelId) => {
         const level = allLevels.find(l => l.id === levelId);
         if (level) {
@@ -84,7 +75,8 @@ function startGame(levelData) {
 
     menuScreen.classList.add('hidden');
     endScreen.classList.add('hidden');
-    hud.classList.remove('hidden');
+
+    // Removed: hud.classList.remove('hidden');
 
     game.start(levelData);
 }
@@ -93,7 +85,8 @@ function showMainMenu() {
     game.stop();
     menuScreen.classList.remove('hidden');
     endScreen.classList.add('hidden');
-    hud.classList.add('hidden');
+
+    // Removed: hud.classList.add('hidden');
 
     if (DEBUG_MODE) {
         // Debug mode logic

@@ -4,12 +4,14 @@ import { Atmosphere } from './Atmosphere.js';
 import { Terrain } from './Terrain.js';
 import { ParticleSystem } from './ParticleSystem.js';
 import { Background } from './Background.js';
+import { HUD } from './HUD.js'; // NEW IMPORT
 
 export class Game {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
 
+        // Dimensions
         this.screenWidth = 0;
         this.screenHeight = 0;
         this.worldWidth = 0;
@@ -19,43 +21,59 @@ export class Game {
         this.active = false;
         this.lastTime = 0;
 
+        // Systems
         this.input = new InputHandler();
         this.particles = new ParticleSystem();
+        this.hud = new HUD(canvas); // NEW HUD
+
         this.background = null;
         this.ship = null;
         this.terrain = null;
         this.atmosphere = null;
         this.levelData = null;
 
-        this.uiFuel = document.getElementById('hud-fuel');
-        this.uiHeat = document.getElementById('hud-heat');
-        this.uiAlt = document.getElementById('hud-alt');
+        // REMOVED: Old DOM Elements (uiFuel, uiHeat, uiAlt)
 
         this.loop = this.loop.bind(this);
         window.addEventListener('resize', () => this.resize());
     }
 
     resize() {
+        // 1. Get the pixel density (1 on standard, 2+ on Retina/Mac)
         const dpr = window.devicePixelRatio || 1;
+
+        // 2. Update Logical Size (CSS Pixels)
         this.screenWidth = window.innerWidth;
         this.screenHeight = window.innerHeight;
 
+        // 3. Set Canvas CSS size (Logical)
         this.canvas.style.width = `${this.screenWidth}px`;
         this.canvas.style.height = `${this.screenHeight}px`;
 
+        // 4. Set Canvas Buffer size (Physical - High Res)
         this.canvas.width = Math.floor(this.screenWidth * dpr);
         this.canvas.height = Math.floor(this.screenHeight * dpr);
 
+        // 5. Normalize Coordinate System
         this.ctx.scale(dpr, dpr);
 
+        // 6. Resize Systems
         if (this.background) {
             this.background.resize(this.screenWidth, this.screenHeight);
+        }
+        if (this.hud) {
+            this.hud.resize(this.screenWidth, this.screenHeight);
         }
     }
 
     start(levelData) {
-        this.resize();
         this.levelData = levelData;
+
+        // Stars need screen dimensions
+        this.background = new Background(window.innerWidth, window.innerHeight);
+
+        this.resize();
+
         this.worldWidth = levelData.width;
         this.worldHeight = levelData.height;
 
@@ -65,12 +83,11 @@ export class Game {
             this.worldWidth,
             this.worldHeight,
             levelData.color,
-            levelData.start_on_ground // New param
+            levelData.start_on_ground
         );
 
         this.atmosphere = new Atmosphere(levelData.atmosphere, this.worldHeight);
 
-        // INITIALIZE SHIP
         const startPos = levelData.ship_start || { x: 100, y: 0 };
         this.ship = new Ship(startPos.x, startPos.y);
         if (startPos.angle !== undefined) this.ship.angle = startPos.angle;
@@ -79,13 +96,12 @@ export class Game {
         // OVERRIDE IF START ON GROUND
         if (levelData.start_on_ground && this.terrain.launchPadPosition) {
             this.ship.x = this.terrain.launchPadPosition.x;
-            this.ship.y = this.terrain.launchPadPosition.y - this.ship.size - 2; // Sit just above
+            this.ship.y = this.terrain.launchPadPosition.y - this.ship.size - 2;
             this.ship.vx = 0;
             this.ship.vy = 0;
-            this.ship.angle = -Math.PI / 2; // Point Up
+            this.ship.angle = -Math.PI / 2;
         }
 
-        this.background = new Background(this.screenWidth, this.screenHeight);
         this.particles.clear();
         this.atmosphere.initFeatures(this.particles, this.worldWidth);
 
@@ -108,6 +124,7 @@ export class Game {
 
     loop(timestamp) {
         if (!this.active) return;
+
         if (!this.lastTime) this.lastTime = timestamp;
 
         let dt = (timestamp - this.lastTime) / 1000;
@@ -125,8 +142,10 @@ export class Game {
         const gravity = this.levelData.gravity || 0.03;
         const step = dt * 60;
 
+        // 1. Update Ship
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
+        // 2. Friction Sparks
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -146,6 +165,7 @@ export class Game {
             }
         }
 
+        // 3. Update Systems
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
 
@@ -170,7 +190,8 @@ export class Game {
             this.handleLevelComplete();
         }
 
-        this.updateUI();
+        // UPDATE HUD STATE
+        this.hud.update(this.ship, this.terrain, this.atmosphere, this.particles);
     }
 
     checkStationInteraction(station) {
@@ -188,25 +209,24 @@ export class Game {
         const halfSize = station.size / 2;
         const padWidth = station.size * 0.35;
 
-        // UPDATE: Reduced tolerance from 10 to 4 for tighter landing
+        // Tolerance
         const landingTolerance = 4;
 
-        // 1. CHECK TOP PAD (Negative Local Y)
+        // 1. CHECK TOP PAD
         const topDist = Math.abs(localY - (-halfSize - this.ship.size/2));
         if (Math.abs(localX) < padWidth && topDist < landingTolerance) {
              this.attemptStationLand(station, -Math.PI/2);
              return;
         }
 
-        // 2. CHECK BOTTOM PAD (Positive Local Y)
+        // 2. CHECK BOTTOM PAD
         const botDist = Math.abs(localY - (halfSize + this.ship.size/2));
         if (Math.abs(localX) < padWidth && botDist < landingTolerance) {
              this.attemptStationLand(station, Math.PI/2);
              return;
         }
 
-        // 3. COLLISION (If not landing)
-        // Main Body Box (approx) with slight margin
+        // 3. COLLISION
         if (Math.abs(localX) < halfSize + 2 && Math.abs(localY) < halfSize + 2) {
              this.crashStation(station);
         }
@@ -237,31 +257,31 @@ export class Game {
         station.life = 0;
     }
 
-    updateUI() {
-        if (this.uiFuel) this.uiFuel.innerText = Math.floor(this.ship.fuel);
+    handleLevelComplete() {
+        this.active = false;
+        document.getElementById('end-message').innerText = "SUCCESSFUL LANDING";
+        document.getElementById('end-message').style.color = "#00ff00";
+        document.getElementById('end-screen').classList.remove('hidden');
+    }
 
-        if (this.uiHeat) {
-            const heatPct = (this.ship.heat / this.ship.maxHeat);
-            this.uiHeat.innerText = Math.floor(this.ship.heat);
-            if (heatPct > 0.8) this.uiHeat.style.color = '#ff0000';
-            else if (heatPct > 0.5) this.uiHeat.style.color = '#ffaa00';
-            else this.uiHeat.style.color = '#00ff00';
-        }
-
-        if (this.uiAlt) {
-            const ground = this.terrain.getHeightAt(this.ship.x);
-            const alt = Math.max(0, Math.floor(ground.y - this.ship.y - (this.ship.size/2)));
-            this.uiAlt.innerText = alt;
-        }
+    handleCrash(reason) {
+        setTimeout(() => {
+            this.active = false;
+            document.getElementById('end-message').innerText = "CRITICAL FAILURE\n" + reason;
+            document.getElementById('end-message').style.color = "#ff4444";
+            document.getElementById('end-screen').classList.remove('hidden');
+        }, 1500);
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.screenWidth, this.screenHeight);
 
+        // 1. Draw Background
         if (this.background) {
             this.background.draw(this.ctx);
         }
 
+        // 2. Draw World
         const cameraX = this.ship.x - this.screenWidth / 2;
         const cameraY = this.ship.y - this.screenHeight / 2;
 
@@ -282,90 +302,7 @@ export class Game {
         if (this.ship.x < this.screenWidth) drawWorldLayer(-this.worldWidth);
         if (this.ship.x > this.worldWidth - this.screenWidth) drawWorldLayer(this.worldWidth);
 
-        this.drawRadar();
-    }
-
-    drawRadar() {
-        const radarW = 200;
-        const radarH = 10;
-        const centerX = this.screenWidth / 2;
-        const radarX = centerX - (radarW / 2);
-        const radarY = 40;
-
-        // Radar Background
-        this.ctx.fillStyle = "rgba(0, 40, 0, 0.6)";
-        this.ctx.fillRect(radarX, radarY, radarW, radarH);
-        this.ctx.strokeStyle = "#00ff00";
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeRect(radarX, radarY, radarW, radarH);
-
-        // 1. Terrain Pads (White)
-        this.ctx.fillStyle = "#ffffff";
-        if (this.terrain) {
-            this.terrain.pads.forEach(pad => {
-                const padX = (pad.x / this.worldWidth) * radarW;
-                this.ctx.fillRect(radarX + padX - 2, radarY, 4, radarH);
-            });
-        }
-
-        // 2. Space Stations (Cyan)
-        this.ctx.fillStyle = "#00ffff";
-        this.particles.particles.forEach(p => {
-            if (p.type === 'station') {
-                const stationX = (p.x / this.worldWidth) * radarW;
-                // Draw a small distinct marker (Cyan Rectangle)
-                this.ctx.fillRect(radarX + stationX - 2, radarY - 2, 4, 14);
-            }
-        });
-
-        // 3. Ship (Green)
-        const shipX = (this.ship.x / this.worldWidth) * radarW;
-        this.ctx.fillStyle = "#00ff00";
-        this.ctx.fillRect(radarX + shipX - 1, radarY - 4, 2, 18);
-
-        // Text HUD
-        this.ctx.font = "bold 16px Courier New";
-        this.ctx.textAlign = "center";
-        let layerName = "SPACE";
-        if (this.atmosphere) {
-            const currentLayer = this.atmosphere.getLayerAt(this.ship.y);
-            layerName = currentLayer.name.toUpperCase();
-        }
-
-        this.ctx.lineWidth = 4;
-        this.ctx.strokeStyle = "black";
-        this.ctx.strokeText(layerName, centerX, radarY + 35);
-        this.ctx.fillStyle = "white";
-        this.ctx.fillText(layerName, centerX, radarY + 35);
-
-        this.ctx.font = "14px Courier New";
-
-        this.ctx.textAlign = "right";
-        const hText = `H.SPEED: ${this.ship.vx.toFixed(1)}`;
-        this.ctx.strokeText(hText, centerX - 120, radarY + 10);
-        this.ctx.fillStyle = Math.abs(this.ship.vx) > 5 ? "#ff5555" : "white";
-        this.ctx.fillText(hText, centerX - 120, radarY + 10);
-
-        this.ctx.textAlign = "left";
-        const vText = `V.SPEED: ${this.ship.vy.toFixed(1)}`;
-        this.ctx.strokeText(vText, centerX + 120, radarY + 10);
-        this.ctx.fillStyle = this.ship.vy > 5 ? "#ff5555" : "white";
-        this.ctx.fillText(vText, centerX + 120, radarY + 10);
-    }
-
-    handleLevelComplete() {
-        this.active = false;
-        document.getElementById('end-message').innerText = "SUCCESSFUL LANDING";
-        document.getElementById('end-message').style.color = "#00ff00";
-        document.getElementById('end-screen').classList.remove('hidden');
-    }
-
-    handleCrash(reason) {
-        setTimeout(() => {
-            this.active = false;
-            document.getElementById('end-message').innerText = "CRITICAL FAILURE\n" + reason;
-            document.getElementById('end-message').style.color = "#ff4444";
-            document.getElementById('end-screen').classList.remove('hidden');
-        }, 1500);
+        // 3. Draw HUD (New Class)
+        this.hud.draw(this.ctx);
     }
 }
