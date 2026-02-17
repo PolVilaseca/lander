@@ -8,11 +8,11 @@ export class Terrain {
         this.color = color;
         this.hasLaunchPad = hasLaunchPad;
         this.points = [];
-        this.pads = [];
+        this.pads = []; // Stores pad info for collision logic
         this.launchPadPosition = null;
         this.segmentWidth = 20;
 
-        // NEW: Geyser storage
+        // Geyser storage
         this.geysers = [];
 
         this.generate();
@@ -22,88 +22,108 @@ export class Terrain {
         this.points = [];
         const numPoints = Math.ceil(this.width / this.segmentWidth) + 1;
 
+        // --- PASS 1: Generate Raw Noise ---
         let currentY = this.height * 0.8;
 
-        // Launch Pad Settings - CENTERED
-        const centerIndex = Math.floor(numPoints / 2);
-        const padRadius = 4;
-        const lpStart = centerIndex - padRadius;
-        const lpEnd = centerIndex + padRadius;
-        const lpY = this.height - 100;
-
-        // Landing Pad (Green) State
-        let flattenSteps = 0;
-        let flattenHeight = 0;
-        let padsCreated = 0;
-        const flatSpotsNeeded = this.params.flat_spots || 1;
-
         for (let i = 0; i < numPoints; i++) {
-            const x = i * this.segmentWidth;
-            let isLaunchPad = false;
+            const variation = (Math.random() - 0.5) * this.params.roughness;
+            currentY += variation;
 
-            // 1. Force Launch Pad (Red)
-            if (this.hasLaunchPad && i >= lpStart && i <= lpEnd) {
-                currentY = lpY;
-                isLaunchPad = true;
+            // Keep within reasonable vertical bounds
+            if (currentY < this.height * 0.4) currentY = this.height * 0.4;
+            if (currentY > this.height - 50) currentY = this.height - 50;
 
-                if (i === centerIndex) {
-                    this.launchPadPosition = { x: x, y: currentY };
-                }
-                flattenSteps = 0;
-            }
-            else {
-                // 2. Normal Terrain Logic
-                if (flattenSteps > 0) {
-                    currentY = flattenHeight;
-                    flattenSteps--;
-                } else {
-                    const variation = (Math.random() - 0.5) * this.params.roughness;
-                    currentY += variation;
-
-                    if (currentY < this.height * 0.5) currentY = this.height * 0.5;
-                    if (currentY > this.height - 20) currentY = this.height - 20;
-
-                    const distToLP = Math.abs(i - centerIndex);
-                    const safeDist = padRadius + 10;
-
-                    if (distToLP > safeDist && padsCreated < flatSpotsNeeded && i > 20 && Math.random() < 0.02) {
-                        flattenSteps = 4;
-                        flattenHeight = currentY;
-                        padsCreated++;
-                    }
-                }
-            }
-
-            this.points.push({ x: x, y: currentY, isPad: false, isLaunchPad: isLaunchPad });
+            this.points.push({
+                x: i * this.segmentWidth,
+                y: currentY,
+                isPad: false,
+                isLaunchPad: false
+            });
         }
 
-        // Post-Processing: Detect flat spots
-        for(let i=0; i<this.points.length-1; i++) {
-            if (this.points[i].isLaunchPad) continue;
+        // --- PASS 2: Loop Smoothing (Fix Discontinuity) ---
+        // Calculate difference between start and end
+        const firstY = this.points[0].y;
+        const lastY = this.points[this.points.length - 1].y;
+        const offset = lastY - firstY;
 
-            if (Math.abs(this.points[i].y - this.points[i+1].y) < 0.1) {
-                let count = 1;
-                while(i+count < this.points.length && Math.abs(this.points[i].y - this.points[i+count].y) < 0.1) {
-                    count++;
-                }
+        // Distribute the offset linearly across all points to close the loop
+        for (let i = 0; i < this.points.length; i++) {
+            const progress = i / (this.points.length - 1);
+            this.points[i].y -= offset * progress;
+        }
 
-                if (count >= 3) {
-                    for(let k=0; k<count; k++) {
-                        this.points[i+k].isPad = true;
-                    }
-                    this.pads.push({ x: this.points[i].x + (count*this.segmentWidth)/2, y: this.points[i].y });
-                    i += count - 1;
+        // --- PASS 3: Create Features (Pads) ---
+        // Now that terrain is smoothed, we can flatten areas safely.
+
+        // 3a. Launch Pad (Centered)
+        if (this.hasLaunchPad) {
+            const centerIndex = Math.floor(numPoints / 2);
+            const padRadius = 4;
+            const lpStart = centerIndex - padRadius;
+            const lpEnd = centerIndex + padRadius;
+            const lpY = this.height - 100; // Fixed height for launch pad
+
+            this.launchPadPosition = { x: this.points[centerIndex].x, y: lpY };
+
+            for (let i = lpStart; i <= lpEnd; i++) {
+                if (this.points[i]) {
+                    this.points[i].y = lpY;
+                    this.points[i].isLaunchPad = true;
                 }
             }
         }
 
-        // NEW: Generate Geysers (Using the points we just created)
+        // 3b. Landing Pads (Random Placement)
+        const flatSpotsNeeded = this.params.flat_spots || 1;
+        let padsCreated = 0;
+        let attempts = 0;
+
+        while (padsCreated < flatSpotsNeeded && attempts < 500) {
+            attempts++;
+
+            // Pick random spot (margin of 10 segments from edges)
+            const idx = Math.floor(Math.random() * (this.points.length - 20)) + 10;
+            const padWidth = 6; // Width of landing pads in segments
+
+            // Safety Check: Don't overwrite Launch Pad
+            let safe = true;
+            for(let k = 0; k < padWidth; k++) {
+                if (this.points[idx+k].isLaunchPad || this.points[idx+k].isPad) {
+                    safe = false;
+                    break;
+                }
+            }
+
+            if (safe) {
+                // Calculate average Y to flatten nicely, or just pick the center Y
+                let avgY = 0;
+                for(let k=0; k<padWidth; k++) avgY += this.points[idx+k].y;
+                avgY /= padWidth;
+
+                // Flatten and Mark
+                for (let k = 0; k < padWidth; k++) {
+                    this.points[idx+k].y = avgY;
+                    this.points[idx+k].isPad = true;
+                }
+
+                // Store pad info for Geyser generation safety
+                this.pads.push({
+                    x: this.points[idx].x,
+                    width: padWidth * this.segmentWidth,
+                    y: avgY
+                });
+
+                padsCreated++;
+            }
+        }
+
+        // --- PASS 4: Generate Geysers ---
         if (this.params.geysers) {
             this.generateGeysers(this.params.geysers);
         }
     }
 
-    // NEW: Geyser Generation Logic
     generateGeysers(config) {
         const count = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
         let placed = 0;
@@ -111,15 +131,16 @@ export class Terrain {
 
         while (placed < count && attempts < 200) {
             attempts++;
-            // Pick a random point index (avoid edges)
             const idx = Math.floor(Math.random() * (this.points.length - 10)) + 5;
             const point = this.points[idx];
 
             // Safety Check: Don't spawn on Pads or Launch Pads
-            // We check the point itself and neighbors to avoid visual overlap
             let safe = true;
+
+            // Check neighbors to avoid visual clutter
             for(let k = -2; k <= 2; k++) {
-                if (this.points[idx+k] && (this.points[idx+k].isPad || this.points[idx+k].isLaunchPad)) {
+                const neighbor = this.points[idx+k];
+                if (neighbor && (neighbor.isPad || neighbor.isLaunchPad)) {
                     safe = false;
                     break;
                 }
@@ -132,26 +153,27 @@ export class Terrain {
         }
     }
 
-    // NEW: Update Geysers
     updateGeysers(dt, ship) {
         this.geysers.forEach(g => g.update(dt, ship));
     }
 
     getHeightAt(x) {
-        const index = Math.floor(x / this.segmentWidth);
-        if (index < 0 || index >= this.points.length - 1) {
-            return { y: this.height + 1000, isPad: false, isLaunchPad: false };
-        }
+        // Handle wrapping for x coordinates outside bounds
+        if (x < 0) x += this.width;
+        if (x >= this.width) x -= this.width;
 
+        const index = Math.floor(x / this.segmentWidth);
+
+        // Safe access
         const p1 = this.points[index];
-        const p2 = this.points[index + 1];
+        const p2 = this.points[index + 1] || this.points[0]; // Wrap to 0 if at end
 
         const ratio = (x - p1.x) / this.segmentWidth;
         const y = p1.y + (p2.y - p1.y) * ratio;
 
         return {
             y: y,
-            isPad: p1.isPad && p2.isPad,
+            isPad: p1.isPad && p2.isPad, // Only safe if both points are pad
             isLaunchPad: p1.isLaunchPad && p2.isLaunchPad
         };
     }
@@ -167,6 +189,7 @@ export class Terrain {
             for (let i = 1; i < this.points.length; i++) {
                 ctx.lineTo(this.points[i].x, this.points[i].y);
             }
+            // Fill down way below screen to ensure coverage
             ctx.lineTo(this.width, this.height + 5000);
             ctx.lineTo(0, this.height + 5000);
         }
@@ -176,9 +199,11 @@ export class Terrain {
         ctx.strokeStyle = this.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        for (let i = 0; i < this.points.length - 1; i++) {
-            ctx.moveTo(this.points[i].x, this.points[i].y);
-            ctx.lineTo(this.points[i+1].x, this.points[i+1].y);
+        if (this.points.length > 0) {
+            ctx.moveTo(this.points[0].x, this.points[0].y);
+            for (let i = 1; i < this.points.length; i++) {
+                ctx.lineTo(this.points[i].x, this.points[i].y);
+            }
         }
         ctx.stroke();
 
