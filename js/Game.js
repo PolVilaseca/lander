@@ -150,6 +150,11 @@ export class Game {
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
 
+        // NEW: Update Geysers
+        if (this.terrain) {
+            this.terrain.updateGeysers(dt, this.ship);
+        }
+
         if (!this.ship.isDead && !this.ship.landed) {
             this.particles.particles.forEach(p => {
                 if (p.type === 'station') {
@@ -157,10 +162,9 @@ export class Game {
                 }
             });
 
-            // LIGHTNING COLLISION (NEW)
             if (this.atmosphere.checkCollision(this.ship)) {
                 this.ship.exploded = true;
-                this.particles.createExplosion(this.ship.x, this.ship.y, 0, 0, "#00ffff", 60); // Blue/Electric explosion
+                this.particles.createExplosion(this.ship.x, this.ship.y, 0, 0, "#00ffff", 60);
                 this.handleCrash("STRUCK BY LIGHTNING");
             }
         }

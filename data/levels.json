@@ -183,6 +183,30 @@
         { "name": "Thermosphere", "height": 500, "color": "rgba(26, 0, 51, 0.4)", "viscosity": 0.005, "wind": -1 }
       ],
       "ship_start": { "x": 0, "y": -1250, "vx": 50, "angle": 0 }
+    },
+    {
+      "id": 8,
+      "name": "Enceladus",
+      "width": 3000,
+      "height": 2000,
+      "gravity": 0.025,
+      "color": "#aaccff",
+      "terrain": {
+          "roughness": 150,
+          "flat_spots": 2,
+          "geysers": {
+              "min": 3,
+              "max": 6,
+              "strength": 12,
+              "frequency": 0.3
+          }
+      },
+      "atmosphere": [
+        { "name": "Ice Plumes", "height": 500, "color": "rgba(100, 200, 255, 0.15)", "viscosity": 0.002, "wind": 1.0 },
+        { "name": "Vapor Mist", "height": 800, "color": "rgba(50, 100, 255, 0.05)", "viscosity": 0.001, "wind": 2.0 },
+        { "name": "Space", "height": 1000, "color": "rgba(0,0,0,0)", "viscosity": 0, "wind": 0 }
+      ],
+      "ship_start": { "x": 500, "y": 100 }
     }
   ]
 }

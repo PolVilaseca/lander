@@ -25,8 +25,7 @@ export class SolarSystemMenu {
             });
         }
 
-        // Define Planets (7 Levels)
-        // UPDATES: Slower speeds (approx half) and wider orbit spacing (+20-30px each)
+        // Define Planets (8 Levels)
         this.planets = [
             {
                 id: 1,
@@ -34,8 +33,8 @@ export class SolarSystemMenu {
                 desc: "Training Ground.\nLow Gravity.",
                 color: "#bbbbbb",
                 radius: 10,
-                orbitRadius: 100, // Was 85
-                speed: 0.004,     // Was 0.008
+                orbitRadius: 100,
+                speed: 0.004,
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -45,8 +44,8 @@ export class SolarSystemMenu {
                 desc: "Standard Mission.\nDusty surface.",
                 color: "#eeeeee",
                 radius: 11,
-                orbitRadius: 140, // Was 120
-                speed: 0.003,     // Was 0.006
+                orbitRadius: 140,
+                speed: 0.003,
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -56,8 +55,8 @@ export class SolarSystemMenu {
                 desc: "High Gravity.\nRugged Terrain.",
                 color: "#cc5500",
                 radius: 13,
-                orbitRadius: 180, // Was 155
-                speed: 0.0025,    // Was 0.005
+                orbitRadius: 180,
+                speed: 0.0025,
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -67,8 +66,8 @@ export class SolarSystemMenu {
                 desc: "Thick Atmosphere.\nWind Hazards.",
                 color: "#4488ff",
                 radius: 14,
-                orbitRadius: 220, // Was 190
-                speed: 0.002,     // Was 0.004
+                orbitRadius: 220,
+                speed: 0.002,
                 angle: Math.random() * 6.28,
                 moons: [{ radius: 3, orbitRadius: 25, speed: 0.05, angle: 0, color: "#fff" }]
             },
@@ -78,8 +77,8 @@ export class SolarSystemMenu {
                 desc: "Meteor Showers.\nExtreme Danger.",
                 color: "#ff3300",
                 radius: 12,
-                orbitRadius: 260, // Was 225
-                speed: 0.0018,    // Was 0.0035
+                orbitRadius: 260,
+                speed: 0.0018,
                 angle: Math.random() * 6.28,
                 moons: [
                     { radius: 3, orbitRadius: 20, speed: 0.04, angle: 0, color: "#ccaa88" },
@@ -89,11 +88,11 @@ export class SolarSystemMenu {
             {
                 id: 6,
                 name: "Venus",
-                desc: "Acid Clouds.\nHigh Pressure.",
+                desc: "Acid Clouds.\nElectric Storms.",
                 color: "#eebb00",
                 radius: 15,
-                orbitRadius: 300, // Was 265
-                speed: 0.0012,    // Was 0.0025
+                orbitRadius: 300,
+                speed: 0.0012,
                 angle: Math.random() * 6.28,
                 moons: []
             },
@@ -103,10 +102,21 @@ export class SolarSystemMenu {
                 desc: "Re-entry Mission.\nHome Base.",
                 color: "#00bbff",
                 radius: 16,
-                orbitRadius: 340, // Was 305
-                speed: 0.001,     // Was 0.002
+                orbitRadius: 340,
+                speed: 0.001,
                 angle: Math.random() * 6.28,
                 moons: [{ radius: 4, orbitRadius: 28, speed: 0.06, angle: 1, color: "#cccccc" }]
+            },
+            {
+                id: 8,
+                name: "Enceladus",
+                desc: "Ice World.\nGeyser Hazards.",
+                color: "#aaccff", // Pale Blue
+                radius: 12,
+                orbitRadius: 380, // Furthest
+                speed: 0.0008,
+                angle: Math.random() * 6.28,
+                moons: []
             }
         ];
 
@@ -118,10 +128,8 @@ export class SolarSystemMenu {
     start() {
         this.active = true;
         this.resize();
-
         this.canvas.addEventListener('mousedown', this.handleInput);
         this.canvas.addEventListener('touchstart', this.handleInput, {passive: false});
-
         this.animate();
     }
 
@@ -137,9 +145,7 @@ export class SolarSystemMenu {
         this.canvas.height = window.innerHeight * dpr;
         this.canvas.style.width = window.innerWidth + 'px';
         this.canvas.style.height = window.innerHeight + 'px';
-
         this.ctx.scale(dpr, dpr);
-
         this.centerX = window.innerWidth / 2;
         this.centerY = window.innerHeight / 2;
     }
@@ -182,8 +188,6 @@ export class SolarSystemMenu {
             const dx = x - p.currentX;
             const dy = y - p.currentY;
             const dist = Math.sqrt(dx*dx + dy*dy);
-
-            // Hitbox slightly larger than visual radius
             if (dist < p.radius + 20) {
                 clickedPlanet = p;
             }

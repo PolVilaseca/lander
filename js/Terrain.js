@@ -1,3 +1,5 @@
+import { Geyser } from './Geyser.js';
+
 export class Terrain {
     constructor(params, width, height, color = "#ffffff", hasLaunchPad = false) {
         this.params = params;
@@ -10,6 +12,9 @@ export class Terrain {
         this.launchPadPosition = null;
         this.segmentWidth = 20;
 
+        // NEW: Geyser storage
+        this.geysers = [];
+
         this.generate();
     }
 
@@ -20,9 +25,8 @@ export class Terrain {
         let currentY = this.height * 0.8;
 
         // Launch Pad Settings - CENTERED
-        // We want the pad in the middle of the world width
         const centerIndex = Math.floor(numPoints / 2);
-        const padRadius = 4; // Total width approx 8-9 segments
+        const padRadius = 4;
         const lpStart = centerIndex - padRadius;
         const lpEnd = centerIndex + padRadius;
         const lpY = this.height - 100;
@@ -42,37 +46,28 @@ export class Terrain {
                 currentY = lpY;
                 isLaunchPad = true;
 
-                // Store center of launch pad
                 if (i === centerIndex) {
                     this.launchPadPosition = { x: x, y: currentY };
                 }
-
-                // Cancel any green pad flattening here
                 flattenSteps = 0;
             }
             else {
                 // 2. Normal Terrain Logic
                 if (flattenSteps > 0) {
-                    // We are currently generating a flat Green Pad
                     currentY = flattenHeight;
                     flattenSteps--;
                 } else {
-                    // Random terrain variation
                     const variation = (Math.random() - 0.5) * this.params.roughness;
                     currentY += variation;
 
-                    // Clamp to screen bounds
                     if (currentY < this.height * 0.5) currentY = this.height * 0.5;
                     if (currentY > this.height - 20) currentY = this.height - 20;
 
-                    // Chance to Start a Green Landing Pad
-                    // Conditions: Not a launch pad area (check margin), we need pads, random chance
-                    // Ensure we are far enough from launch pad
                     const distToLP = Math.abs(i - centerIndex);
-                    const safeDist = padRadius + 10; // Buffer
+                    const safeDist = padRadius + 10;
 
                     if (distToLP > safeDist && padsCreated < flatSpotsNeeded && i > 20 && Math.random() < 0.02) {
-                        flattenSteps = 4; // Flatten for next 4 points
+                        flattenSteps = 4;
                         flattenHeight = currentY;
                         padsCreated++;
                     }
@@ -82,29 +77,64 @@ export class Terrain {
             this.points.push({ x: x, y: currentY, isPad: false, isLaunchPad: isLaunchPad });
         }
 
-        // Post-Processing: Detect flat spots to mark them as "isPad" for physics/drawing
+        // Post-Processing: Detect flat spots
         for(let i=0; i<this.points.length-1; i++) {
             if (this.points[i].isLaunchPad) continue;
 
-            // Check if this point and next are flat relative to each other
             if (Math.abs(this.points[i].y - this.points[i+1].y) < 0.1) {
-                // Check sequence length
                 let count = 1;
                 while(i+count < this.points.length && Math.abs(this.points[i].y - this.points[i+count].y) < 0.1) {
                     count++;
                 }
 
-                // If reasonably long, mark as Pad
                 if (count >= 3) {
                     for(let k=0; k<count; k++) {
                         this.points[i+k].isPad = true;
                     }
-                    // Register for Radar
                     this.pads.push({ x: this.points[i].x + (count*this.segmentWidth)/2, y: this.points[i].y });
                     i += count - 1;
                 }
             }
         }
+
+        // NEW: Generate Geysers (Using the points we just created)
+        if (this.params.geysers) {
+            this.generateGeysers(this.params.geysers);
+        }
+    }
+
+    // NEW: Geyser Generation Logic
+    generateGeysers(config) {
+        const count = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
+        let placed = 0;
+        let attempts = 0;
+
+        while (placed < count && attempts < 200) {
+            attempts++;
+            // Pick a random point index (avoid edges)
+            const idx = Math.floor(Math.random() * (this.points.length - 10)) + 5;
+            const point = this.points[idx];
+
+            // Safety Check: Don't spawn on Pads or Launch Pads
+            // We check the point itself and neighbors to avoid visual overlap
+            let safe = true;
+            for(let k = -2; k <= 2; k++) {
+                if (this.points[idx+k] && (this.points[idx+k].isPad || this.points[idx+k].isLaunchPad)) {
+                    safe = false;
+                    break;
+                }
+            }
+
+            if (safe) {
+                this.geysers.push(new Geyser(point.x, point.y, config.strength, config.frequency, this.color));
+                placed++;
+            }
+        }
+    }
+
+    // NEW: Update Geysers
+    updateGeysers(dt, ship) {
+        this.geysers.forEach(g => g.update(dt, ship));
     }
 
     getHeightAt(x) {
@@ -179,6 +209,9 @@ export class Terrain {
             }
         }
         ctx.stroke();
+
+        // 5. Draw Geysers
+        this.geysers.forEach(g => g.draw(ctx));
 
         ctx.restore();
     }
