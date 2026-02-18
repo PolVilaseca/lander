@@ -86,7 +86,8 @@ export class Particle {
 
         } else {
             // Non-rotated drawing
-            // NEW: Wind Particles (Streak)
+
+            // UPDATED: User's Manual Wind Drawing
             if (this.type === 'wind') {
                  ctx.strokeStyle = this.color;
                  ctx.lineWidth = 3;
@@ -140,11 +141,8 @@ export class ParticleSystem {
         }
     }
 
-    // NEW: Wind Particle Creator
     createWindParticle(x, y, vx, color) {
-        // Short life (0.5 - 1.0s)
-        const life = 30 + Math.random() * 30; // Frames (at 60fps)
-        // Z-layer 1 (Background)
+        const life = 30 + Math.random() * 30;
         this.particles.push(new Particle(x, y, vx, 0, life, color, 1, 'wind', 1));
     }
 
@@ -201,11 +199,9 @@ export class ParticleSystem {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
 
-            // Gravity logic
             if (p.type === 'meteorite') {
                  p.vy += gravity * step;
             }
-            // Exclude 'wind' from gravity
             else if (p.type !== 'cloud' && p.type !== 'station' && p.type !== 'debris' && p.type !== 'wind') {
                  p.vy += gravity * 0.2 * step;
             }
@@ -220,7 +216,6 @@ export class ParticleSystem {
                 continue;
             }
 
-            // Meteorite Logic
             if (p.type === 'meteorite') {
                 if (Math.random() < 0.4 * step) {
                      if (atmosphere) {
@@ -254,7 +249,6 @@ export class ParticleSystem {
                 if (p.y > 5000) p.life = 0;
             }
 
-            // Debris Collision
             if (p.type === 'debris') {
                 if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;

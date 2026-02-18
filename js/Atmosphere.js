@@ -214,7 +214,11 @@ export class Atmosphere {
                         const dx = Math.random() * worldWidth;
                         const dy = this.worldHeight - (d.minAltitude + Math.random() * (d.maxAltitude - d.minAltitude));
                         const size = d.minSize + Math.random() * (d.maxSize - d.minSize);
-                        const speed = (Math.random() < 0.5 ? -1 : 1) * d.speed;
+
+                        // Calculate velocity: Base speed +/- 20% variance
+                        const variance = Math.abs(d.speed * 0.2);
+                        const speed = d.speed + (Math.random() - 0.5) * 2 * variance;
+
                         particleSystem.createSpaceDebris(dx, dy, speed, size);
                     }
                 }

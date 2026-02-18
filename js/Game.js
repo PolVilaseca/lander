@@ -98,6 +98,8 @@ export class Game {
             });
         }
 
+        
+
         this.active = true;
         this.lastTime = 0;
         requestAnimationFrame(this.loop);
@@ -127,7 +129,7 @@ export class Game {
         // 1. Update Ship
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
-        // 2. Friction Sparks (Ship)
+        // 2. Friction Sparks
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -155,19 +157,15 @@ export class Game {
         // 3. Update Systems
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
 
-        // NEW: Spawn Wind Particles
+        // Spawn Wind Particles
         if (this.atmosphere && this.atmosphere.layers) {
             let currentAlt = 0;
             this.atmosphere.layers.forEach(layer => {
                 const height = layer.height;
-                // Layer Y range: [topY, bottomY]
-                // Note: World Y increases downwards. Surface is at bottom.
-                // layer index 0 is Surface (bottom).
                 const bottomY = this.worldHeight - currentAlt;
                 const topY = bottomY - height;
 
                 if (layer.wind && Math.abs(layer.wind) > 0.5) {
-                    // Spawn Rate proportional to wind speed
                     const spawnRate = 0.2 * Math.abs(layer.wind);
                     if (Math.random() < spawnRate * step) {
                         const px = Math.random() * this.worldWidth;

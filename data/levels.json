@@ -62,9 +62,9 @@
           "name": "Exosphere", "height": 500, "color": "rgba(0, 0, 255, 0.05)", "viscosity": 0.0025, "wind": 5,
           "features": {
             "space_debris": {
-              "count": 15,
+              "count": 45,
               "minSize": 10, "maxSize": 25,
-              "speed": 4.0,
+              "speed": 4,
               "minAltitude": 1400, "maxAltitude": 1700
             }
           }
