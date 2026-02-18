@@ -87,6 +87,7 @@ export class Game {
         }
 
         this.particles.clear();
+        this.particles.initAmbientDust(this.worldWidth, this.worldHeight);
         this.atmosphere.initFeatures(this.particles, this.worldWidth);
 
         if (levelData.space_stations) {
@@ -126,7 +127,7 @@ export class Game {
         // 1. Update Ship
         this.ship.update(this.input, gravity, this.worldWidth, this.worldHeight, this.atmosphere, this.terrain, dt);
 
-        // 2. Friction Sparks
+        // 2. Friction Sparks (Ship)
         if (this.atmosphere && !this.ship.isDead) {
             const layer = this.atmosphere.getLayerAt(this.ship.y);
             if (layer.viscosity > 0) {
@@ -134,11 +135,16 @@ export class Game {
                 const relativeVy = this.ship.vy;
                 const speed = Math.sqrt(relativeVx * relativeVx + relativeVy * relativeVy);
 
-                const sparkChance = speed * layer.viscosity * 4;
+                const sparkChance = speed * layer.viscosity * 20;
+
                 if (Math.random() < sparkChance * step) {
+                    const spread = this.ship.size * 0.8;
+                    const sx = this.ship.x + (Math.random() - 0.5) * spread;
+                    const sy = this.ship.y + (Math.random() - 0.5) * spread;
+
                     this.particles.createFrictionSpark(
-                        this.ship.x,
-                        this.ship.y,
+                        sx,
+                        sy,
                         -relativeVx * 0.2 + (layer.wind || 0),
                         -relativeVy * 0.2
                     );
@@ -148,10 +154,34 @@ export class Game {
 
         // 3. Update Systems
         this.atmosphere.update(this.particles, this.worldWidth, this.worldHeight, dt);
+
+        // NEW: Spawn Wind Particles
+        if (this.atmosphere && this.atmosphere.layers) {
+            let currentAlt = 0;
+            this.atmosphere.layers.forEach(layer => {
+                const height = layer.height;
+                // Layer Y range: [topY, bottomY]
+                // Note: World Y increases downwards. Surface is at bottom.
+                // layer index 0 is Surface (bottom).
+                const bottomY = this.worldHeight - currentAlt;
+                const topY = bottomY - height;
+
+                if (layer.wind && Math.abs(layer.wind) > 0.5) {
+                    // Spawn Rate proportional to wind speed
+                    const spawnRate = 0.2 * Math.abs(layer.wind);
+                    if (Math.random() < spawnRate * step) {
+                        const px = Math.random() * this.worldWidth;
+                        const py = topY + Math.random() * height;
+                        this.particles.createWindParticle(px, py, layer.wind, "rgba(200, 240, 255, 0.2)");
+                    }
+                }
+                currentAlt += height;
+            });
+        }
+
         this.particles.update(gravity, this.worldWidth, this.atmosphere, this.terrain, this.ship, dt);
 
-        // NEW: Update Geysers
-        if (this.terrain) {
+        if (this.terrain.updateGeysers) {
             this.terrain.updateGeysers(dt, this.ship);
         }
 

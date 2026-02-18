@@ -37,88 +37,84 @@ export class Particle {
         ctx.save();
         ctx.globalAlpha = this.alpha;
 
-        if (this.rotationSpeed !== 0 || this.type === 'station') {
+        // Apply rotation
+        if (this.rotationSpeed !== 0 || this.type === 'debris' || this.type === 'station') {
             ctx.translate(this.x, this.y);
             ctx.rotate(this.angle);
-            ctx.translate(-this.x, -this.y);
-        }
 
-        if (this.type === 'line') {
-            ctx.strokeStyle = this.color;
-            ctx.lineWidth = 4;
-            ctx.beginPath();
-            ctx.moveTo(this.x, this.y);
-            ctx.lineTo(this.x - (this.vx * 20), this.y);
-            ctx.stroke();
+            if (this.type === 'station') {
+                const halfSize = this.size / 2;
+                const panelW = this.size * 1.5;
+                const panelH = this.size * 0.6;
 
-        } else if (this.type === 'spark') {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.size, this.size);
+                // 1. Solar Panels (Wireframe)
+                ctx.strokeStyle = '#4da6ff';
+                ctx.lineWidth = 1.5;
+                ctx.strokeRect(-halfSize - panelW, -panelH/2, panelW, panelH); // Left
+                ctx.strokeRect(halfSize, -panelH/2, panelW, panelH);           // Right
 
-        } else if (this.type === 'cloud') {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x - this.size/2, this.y - this.height/2, this.size, this.height);
+                // Connector Struts
+                ctx.strokeStyle = '#888888';
+                ctx.beginPath();
+                ctx.moveTo(-halfSize, 0); ctx.lineTo(-halfSize - panelW, 0);
+                ctx.moveTo(halfSize, 0);  ctx.lineTo(halfSize + panelW, 0);
+                ctx.stroke();
 
-        } else if (this.type === 'meteorite') {
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-            ctx.stroke();
+                // 2. Hub (Wireframe)
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-halfSize, -halfSize, this.size, this.size);
 
-        } else if (this.type === 'debris') {
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(this.x - this.size/2, this.y - this.size/2, this.size, this.size);
+                // 3. Inner Circle
+                ctx.beginPath();
+                ctx.arc(0, 0, halfSize * 0.75, 0, Math.PI * 2);
+                ctx.stroke();
 
-        } else if (this.type === 'station') {
-            // WIREFRAME STATION
-            const s = this.size;
+                // 4. Docking Indicators
+                ctx.strokeStyle = '#00ff00';
+                const padH = 5;
+                const padW = this.size - 8;
+                ctx.strokeRect(-padW/2, -halfSize - padH, padW, padH);
+                ctx.strokeRect(-padW/2, halfSize, padW, padH);
 
-            // 1. Solar Panels (Rectangles on Left/Right)
-            ctx.strokeStyle = '#3366cc';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(this.x - s*1.2, this.y - s*0.25, s*0.7, s*0.5);
-            ctx.strokeRect(this.x + s*0.5, this.y - s*0.25, s*0.7, s*0.5);
-
-            // Connectors
-            ctx.strokeStyle = '#999';
-            ctx.beginPath();
-            ctx.moveTo(this.x - s*0.5, this.y);
-            ctx.lineTo(this.x - s*1.2, this.y);
-            ctx.moveTo(this.x + s*0.5, this.y);
-            ctx.lineTo(this.x + s*1.2, this.y);
-            ctx.stroke();
-
-            // 2. Main Body (White Square Outline)
-            ctx.strokeStyle = '#ffffff';
-            ctx.strokeRect(this.x - s/2, this.y - s/2, s, s);
-
-            // 3. Central Circle (Outline)
-            ctx.strokeStyle = '#ccc';
-            ctx.beginPath();
-            ctx.arc(this.x, this.y, s*0.25, 0, Math.PI*2);
-            ctx.stroke();
-
-            // 4. Landing Pads (Top AND Bottom)
-            ctx.strokeStyle = '#00ff00';
-            ctx.lineWidth = 3;
-
-            // Top Pad
-            ctx.beginPath();
-            ctx.moveTo(this.x - s*0.3, this.y - s/2);
-            ctx.lineTo(this.x + s*0.3, this.y - s/2);
-            ctx.stroke();
-
-            // Bottom Pad (New)
-            ctx.beginPath();
-            ctx.moveTo(this.x - s*0.3, this.y + s/2);
-            ctx.lineTo(this.x + s*0.3, this.y + s/2);
-            ctx.stroke();
+            } else if (this.type === 'debris') {
+                 // Empty squares (stroke only)
+                 ctx.strokeStyle = '#ffffff';
+                 ctx.lineWidth = 1.5;
+                 ctx.strokeRect(-this.size/2, -this.size/2, this.size, this.size);
+            }
 
         } else {
-            ctx.fillStyle = this.color;
-            ctx.fillRect(this.x, this.y, this.size, this.size);
+            // Non-rotated drawing
+            // NEW: Wind Particles (Streak)
+            if (this.type === 'wind') {
+                 ctx.strokeStyle = this.color;
+                 ctx.lineWidth = 3;
+                 ctx.beginPath();
+                 ctx.moveTo(this.x, this.y);
+                 // Draw trail proportional to speed
+                 ctx.lineTo(this.x - this.vx * 6, this.y);
+                 ctx.stroke();
+            }
+            else {
+                ctx.translate(this.x, this.y);
+
+                if (this.type === 'cloud') {
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(0, 0, this.size, this.height);
+                } else if (this.type === 'meteorite') {
+                     // Empty Meteorite (Stroke Only)
+                     ctx.strokeStyle = this.color;
+                     ctx.lineWidth = 2;
+                     ctx.beginPath();
+                     ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+                     ctx.stroke();
+                } else {
+                    // Sparks / Dust
+                    ctx.fillStyle = this.color;
+                    ctx.fillRect(0, 0, this.size, this.size);
+                }
+            }
         }
 
         ctx.restore();
@@ -128,78 +124,75 @@ export class Particle {
 export class ParticleSystem {
     constructor() {
         this.particles = [];
+        this.ambientDust = [];
     }
 
-    clear() {
-        this.particles = [];
-    }
-
-    createExplosion(x, y, baseVx, baseVy, color, count = 30) {
+    initAmbientDust(worldWidth, worldHeight) {
+        this.ambientDust = [];
+        const count = (worldWidth * worldHeight) / 2500;
         for (let i = 0; i < count; i++) {
-            const angle = Math.random() * Math.PI * 2;
-            const speed = Math.random() * 5;
-            this.particles.push(new Particle(
-                x, y,
-                baseVx * 0.5 + Math.cos(angle) * speed,
-                baseVy * 0.5 + Math.sin(angle) * speed,
-                40 + Math.random() * 40,
-                color,
-                2 + Math.random() * 3,
-                'square',
-                0
-            ));
+            this.ambientDust.push({
+                x: Math.random() * worldWidth,
+                y: Math.random() * worldHeight,
+                size: Math.random() * 1.5 + 0.5,
+                alpha: Math.random() * 0.3 + 0.05
+            });
         }
     }
 
-    createWindParticle(x, y, speedX, color) {
-        this.particles.push(new Particle(
-            x, y, speedX, 0,
-            60 + Math.random() * 40,
-            color, 4, 'line', 0
-        ));
+    // NEW: Wind Particle Creator
+    createWindParticle(x, y, vx, color) {
+        // Short life (0.5 - 1.0s)
+        const life = 30 + Math.random() * 30; // Frames (at 60fps)
+        // Z-layer 1 (Background)
+        this.particles.push(new Particle(x, y, vx, 0, life, color, 1, 'wind', 1));
+    }
+
+    createExplosion(x, y, vx, vy, color, count) {
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = Math.random() * 2;
+            const pvx = vx * 0.5 + Math.cos(angle) * speed;
+            const pvy = vy * 0.5 + Math.sin(angle) * speed;
+            const life = 20 + Math.random() * 20;
+            const size = 2 + Math.random() * 2;
+
+            this.particles.push(new Particle(x, y, pvx, pvy, life, color, size, 'square', 0));
+        }
     }
 
     createFrictionSpark(x, y, vx, vy) {
-        this.particles.push(new Particle(
-            x + (Math.random() - 0.5) * 15,
-            y + (Math.random() - 0.5) * 15,
-            vx, vy,
-            10 + Math.random() * 15,
-            'rgba(255, 200, 50, 1)',
-            4, 'spark', 0
-        ));
+        const size = 2 + Math.random() * 2;
+        const life = 10 + Math.random() * 10;
+        this.particles.push(new Particle(x, y, vx, vy, life, '#ffff00', size, 'square', 0));
     }
 
-    createCloud(x, y, speedX, color, width, height) {
-        this.particles.push(new Particle(
-            x, y, speedX, 0,
-            Infinity,
-            color, width, 'cloud', 1, height
-        ));
+    createSpaceStation(x, y, vx, size) {
+        const angle = Math.random() * Math.PI * 2;
+        const p = new Particle(x, y, vx, 0, 99999, '#ffffff', size, 'station', 1, null, angle);
+        this.particles.push(p);
     }
 
-    createMeteorite(x, y, vx, vy, size) {
-        this.particles.push(new Particle(
-            x, y, vx, vy,
-            Infinity, '#ffffff', size, 'meteorite', 0
-        ));
+    createCloud(x, y, vx, color, w, h) {
+        const p = new Particle(x, y, vx, 0, 99999, color, w, 'cloud', 1, h);
+        this.particles.push(p);
     }
 
     createSpaceDebris(x, y, vx, size) {
         const angle = Math.random() * Math.PI * 2;
         const rotSpeed = (Math.random() - 0.5) * 0.1;
-        this.particles.push(new Particle(
-            x, y, vx, 0,
-            Infinity, '#ffffff', size, 'debris', 0, null, angle, rotSpeed
-        ));
+        const p = new Particle(x, y, vx, 0, 99999, '#888888', size, 'debris', 1, null, angle, rotSpeed);
+        this.particles.push(p);
     }
 
-    createSpaceStation(x, y, vx, size) {
-        const angle = Math.random() * Math.PI * 2;
-        this.particles.push(new Particle(
-            x, y, vx, 0,
-            Infinity, '#ffffff', size, 'station', 0, null, angle, 0
-        ));
+    createMeteorite(x, y, vx, vy, size) {
+         const p = new Particle(x, y, vx, vy, 1200, '#ffaa00', size, 'meteorite', 0);
+         this.particles.push(p);
+    }
+
+    clear() {
+        this.particles = [];
+        this.ambientDust = [];
     }
 
     update(gravity, worldWidth, atmosphere, terrain, ship, dt) {
@@ -208,40 +201,46 @@ export class ParticleSystem {
         for (let i = this.particles.length - 1; i >= 0; i--) {
             const p = this.particles[i];
 
-            if (p.type === 'square' || p.type === 'meteorite') {
-                p.vy += gravity * step;
-            } else if (p.type === 'spark') {
-                p.vy += gravity * 0.1 * step;
+            // Gravity logic
+            if (p.type === 'meteorite') {
+                 p.vy += gravity * step;
+            }
+            // Exclude 'wind' from gravity
+            else if (p.type !== 'cloud' && p.type !== 'station' && p.type !== 'debris' && p.type !== 'wind') {
+                 p.vy += gravity * 0.2 * step;
             }
 
             p.update(step);
 
+            if (p.x < 0) p.x += worldWidth;
             if (p.x > worldWidth) p.x -= worldWidth;
-            else if (p.x < 0) p.x += worldWidth;
 
+            if (p.life <= 0) {
+                this.particles.splice(i, 1);
+                continue;
+            }
+
+            // Meteorite Logic
             if (p.type === 'meteorite') {
-                if (atmosphere) {
-                    const layer = atmosphere.getLayerAt(p.y);
-                    if (layer.viscosity > 0) {
-                        const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
-                        const heat = speed * layer.viscosity * 20;
-                        if (heat > 0.5 && Math.random() < heat * step) {
-                            const sparkVx = layer.wind + (Math.random()-0.5);
-                            const sparkVy = -p.vy * 0.5;
-                            this.createFrictionSpark(p.x, p.y, sparkVx, sparkVy);
-                        }
-                    }
+                if (Math.random() < 0.4 * step) {
+                     if (atmosphere) {
+                         const layer = atmosphere.getLayerAt(p.y);
+                         if (layer.viscosity > 0) {
+                             const spread = p.size;
+                             const sx = p.x + (Math.random() - 0.5) * spread;
+                             const sy = p.y + (Math.random() - 0.5) * spread;
+                             this.createFrictionSpark(sx, sy, -p.vx * 0.5, -p.vy * 0.5);
+                         }
+                     }
                 }
 
                 if (terrain) {
                     const ground = terrain.getHeightAt(p.x);
-                    if (p.y + p.size >= ground.y) {
-                        this.createExplosion(p.x, p.y, p.vx*0.3, -p.vy*0.3, "#ffaa00", 20);
-                        this.createExplosion(p.x, p.y, p.vx*0.2, -p.vy*0.2, "#885522", 15);
+                    if (p.y + p.size > ground.y) {
+                        this.createExplosion(p.x, p.y, 0, -2, "#ffaa00", 20);
                         p.life = 0;
                     }
                 }
-
                 if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;
                     const dy = p.y - ship.y;
@@ -255,6 +254,7 @@ export class ParticleSystem {
                 if (p.y > 5000) p.life = 0;
             }
 
+            // Debris Collision
             if (p.type === 'debris') {
                 if (ship && !ship.isDead && !ship.landed) {
                     const dx = p.x - ship.x;
@@ -268,18 +268,27 @@ export class ParticleSystem {
                     }
                 }
             }
-
-            if (p.life <= 0) {
-                this.particles.splice(i, 1);
-            }
         }
     }
 
-    draw(ctx, targetLayer = 0) {
-        this.particles.forEach(p => {
-            if (p.zLayer === targetLayer) {
-                p.draw(ctx);
-            }
-        });
+    draw(ctx, layer) {
+        if (layer === 1) {
+            ctx.fillStyle = "#ffffff";
+            this.ambientDust.forEach(p => {
+                ctx.globalAlpha = p.alpha;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+            });
+            ctx.globalAlpha = 1.0;
+
+            this.particles.forEach(p => {
+                if (p.zLayer === 1) p.draw(ctx);
+            });
+        }
+
+        if (layer === 0) {
+            this.particles.forEach(p => {
+                if (p.zLayer === 0) p.draw(ctx);
+            });
+        }
     }
 }
