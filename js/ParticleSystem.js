@@ -26,6 +26,11 @@ export class Particle {
             this.life -= step;
         }
 
+        // Radar ring logic: expands horizontally very fast
+        if (this.type === 'radar-ring') {
+            this.size += 15 * step;
+        }
+
         if (this.type === 'cloud' || this.type === 'meteorite' || this.type === 'debris' || this.type === 'station') {
              this.alpha = 1;
         } else {
@@ -87,7 +92,6 @@ export class Particle {
         } else {
             // Non-rotated drawing
 
-            // UPDATED: User's Manual Wind Drawing
             if (this.type === 'wind') {
                  ctx.strokeStyle = this.color;
                  ctx.lineWidth = 3;
@@ -96,8 +100,17 @@ export class Particle {
                  // Draw trail proportional to speed
                  ctx.lineTo(this.x - this.vx * 6, this.y);
                  ctx.stroke();
-            }
-            else {
+             } else if (this.type === 'radar-ring') {
+                  // Rectangle that looks like it's drawn onto the ground plane
+                  ctx.strokeStyle = this.color;
+                  ctx.lineWidth = Math.max(0.1, 4 * this.alpha); // Fades out as it dies
+                  
+                  // Make it wide and short to maintain perspective
+                  const rectWidth = this.size * 2;
+                  const rectHeight = this.size * 0.5;
+
+                  ctx.strokeRect(this.x - rectWidth / 2, this.y - rectHeight / 2, rectWidth, rectHeight);
+             } else {
                 ctx.translate(this.x, this.y);
 
                 if (this.type === 'cloud') {
@@ -139,6 +152,12 @@ export class ParticleSystem {
                 alpha: Math.random() * 0.3 + 0.05
             });
         }
+    }
+
+    // NEW: Win state pulse
+    createRadarRing(x, y, color) {
+        // Starts with size 0, lives for 45 frames (about 0.75 seconds)
+        this.particles.push(new Particle(x, y, 0, 0, 45, color, 0, 'radar-ring', 0));
     }
 
     createWindParticle(x, y, vx, color) {
@@ -202,7 +221,8 @@ export class ParticleSystem {
             if (p.type === 'meteorite') {
                  p.vy += gravity * step;
             }
-            else if (p.type !== 'cloud' && p.type !== 'station' && p.type !== 'debris' && p.type !== 'wind') {
+            // Radar rings and Wind ignore gravity entirely
+            else if (p.type !== 'cloud' && p.type !== 'station' && p.type !== 'debris' && p.type !== 'wind' && p.type !== 'radar-ring') {
                  p.vy += gravity * 0.2 * step;
             }
 

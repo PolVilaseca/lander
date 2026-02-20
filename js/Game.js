@@ -19,6 +19,7 @@ export class Game {
         this.camera = { x: 0, y: 0 };
         this.active = false;
         this.lastTime = 0;
+        this.isEnding = false; // Prevents triggering end events multiple times
 
         this.input = new InputHandler();
         this.particles = new ParticleSystem();
@@ -98,10 +99,9 @@ export class Game {
             });
         }
 
-        
-
         this.active = true;
         this.lastTime = 0;
+        this.isEnding = false; // Reset ending flag
         requestAnimationFrame(this.loop);
     }
 
@@ -200,13 +200,15 @@ export class Game {
         this.camera.x = this.ship.x - this.screenWidth / 2;
         this.camera.y = this.ship.y - this.screenHeight / 2;
 
-        if (this.ship.exploded && !this.ship.isDead) {
+        if (this.ship.exploded && !this.ship.isDead && !this.isEnding) {
             this.ship.isDead = true;
+            this.isEnding = true;
             this.particles.createExplosion(this.ship.x, this.ship.y, this.ship.vx, this.ship.vy, "#ff5500", 40);
             this.handleCrash("VEHICLE DESTROYED");
         }
 
-        if (this.ship.landed) {
+        if (this.ship.landed && !this.isEnding) {
+            this.isEnding = true;
             this.handleLevelComplete();
         }
 
@@ -270,18 +272,44 @@ export class Game {
     }
 
     handleLevelComplete() {
-        this.active = false;
-        document.getElementById('end-message').innerText = "SUCCESSFUL LANDING";
-        document.getElementById('end-message').style.color = "#00ff00";
-        document.getElementById('end-screen').classList.remove('hidden');
+        // RADAR PULSE EFFECT: Spawn 3 rings, separated by 300ms
+        for (let i = 0; i < 3; i++) {
+            setTimeout(() => {
+                if (this.active) {
+                    // Position at the bottom of the ship (the landing pad)
+                    this.particles.createRadarRing(this.ship.x, this.ship.y + this.ship.size/2, "#00ff00");
+                }
+            }, i * 300);
+        }
+
+        setTimeout(() => {
+            this.active = false;
+            const endScreen = document.getElementById('end-screen');
+            const endMessage = document.getElementById('end-message');
+
+            endMessage.innerText = "SUCCESSFUL LANDING";
+            endMessage.style.color = "#00ff00"; // Green text
+
+            // Update the tactical panel outline to Green
+            endScreen.style.setProperty('--panel-color', 'rgba(0, 255, 0, 0.4)');
+
+            endScreen.classList.remove('hidden');
+        }, 1500);
     }
 
     handleCrash(reason) {
         setTimeout(() => {
             this.active = false;
-            document.getElementById('end-message').innerText = "CRITICAL FAILURE\n" + reason;
-            document.getElementById('end-message').style.color = "#ff4444";
-            document.getElementById('end-screen').classList.remove('hidden');
+            const endScreen = document.getElementById('end-screen');
+            const endMessage = document.getElementById('end-message');
+
+            endMessage.innerText = "CRITICAL FAILURE\n" + reason;
+            endMessage.style.color = "#ff4444"; // Red text
+
+            // Update the tactical panel outline to Red
+            endScreen.style.setProperty('--panel-color', 'rgba(255, 68, 68, 0.4)');
+
+            endScreen.classList.remove('hidden');
         }, 1500);
     }
 

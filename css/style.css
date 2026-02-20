@@ -170,31 +170,73 @@ body {
 }
 
 /* END SCREEN (Win/Loss) */
+/* END SCREEN TACTICAL PANEL AESTHETICS */
 #end-screen {
+    --panel-color: rgba(0, 255, 255, 0.5); /* Dynamic variable, changed by JS */
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
 
-    text-align: center;
-    background: rgba(0, 0, 0, 0.85);
-    padding: 30px;
-    border: 2px solid #fff;
-    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    /* Override .ui-screen full-width/height */
+    width: auto;
+    height: auto;
 
-    /* Re-enable clicks for retry buttons */
-    pointer-events: auto;
-    z-index: 200;
-}
+    /* Tactical Background & Border */
+    background: rgba(0, 20, 40, 0.9);
+    border: 2px solid var(--panel-color);
 
-#end-screen.hidden {
-    display: none;
+    /* REMOVED NEON GLOW, kept standard drop shadow for depth */
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+
+    padding: 40px 80px;
+
+    /* NEW: Grid layout to put buttons side-by-side */
+    display: grid;
+    grid-template-columns: auto auto;
+    justify-content: center;
+    align-items: center;
+    gap: 25px;
+    z-index: 1000;
 }
 
 #end-message {
-    font-size: 24px;
-    margin-bottom: 20px;
-    font-weight: bold;
-    white-space: pre-wrap; /* Preserve line breaks in JS strings */
-    line-height: 1.4;
+    grid-column: 1 / -1; /* Forces the title to span across both button columns */
+    margin: 0;
+    margin-bottom: 10px;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 32px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-align: center;
+    white-space: pre-line; /* Allows line breaks (\n) from JS to render */
+}
+
+/* Tactical Brackets (Corners) - Keep these exactly as they are */
+#end-screen::before, #end-screen::after {
+    content: '';
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--panel-color);
+    pointer-events: none;
+}
+
+#end-screen::before {
+    top: -3px;
+    left: -3px;
+    border-right: none;
+    border-bottom: none;
+}
+
+#end-screen::after {
+    bottom: -3px;
+    right: -3px;
+    border-left: none;
+    border-top: none;
+}
+
+#end-screen.hidden {
+    display: none !important;
 }

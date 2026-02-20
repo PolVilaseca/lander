@@ -149,7 +149,7 @@ export class HUD {
             const worldW = this.terrain.width;
 
             // 1. Draw Pads (White)
-            ctx.fillStyle = "#ffffff";
+            ctx.fillStyle = "#00ff00";
             this.terrain.pads.forEach(pad => {
                 const px = (pad.x / worldW) * radarW;
                 const padH = radarH * 0.4;
