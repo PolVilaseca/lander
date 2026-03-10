@@ -1,5 +1,4 @@
 export class SolarSystemMenu {
-    // NEW: Accepts progression config
     constructor(canvas, onPlayLevel, enforceProgression = true) {
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
@@ -12,12 +11,10 @@ export class SolarSystemMenu {
 
         this.selectedPlanet = null;
         this.pulseAnim = 0;
-        this.completedLevels = []; // Tracks saved progress
+        this.completedLevels = [];
 
-        // Visual Settings
         this.sun = { radius: 35, color: '#ffaa00', glow: '#ff5500' };
 
-        // Background Stars
         this.stars = [];
         for(let i=0; i<150; i++) {
             this.stars.push({
@@ -28,46 +25,68 @@ export class SolarSystemMenu {
             });
         }
 
-        // Define Planets (8 Levels)
+        // --- NEW HIERARCHY ---
         this.planets = [
-            { id: 1, name: "Luna Prime", desc: "Training Ground.\nLow Gravity.", color: "#bbbbbb", radius: 10, orbitRadius: 100, speed: 0.002, angle: Math.random() * 6.28, moons: [] },
-            { id: 4, name: "The Moon", desc: "Standard Mission.\nDusty surface.", color: "#eeeeee", radius: 11, orbitRadius: 140, speed: 0.0015, angle: Math.random() * 6.28, moons: [] },
-            { id: 2, name: "Mars Outpost", desc: "High Gravity.\nRugged Terrain.", color: "#cc5500", radius: 13, orbitRadius: 180, speed: 0.00125, angle: Math.random() * 6.28, moons: [] },
-            { id: 3, name: "Terra Nova", desc: "Thick Atmosphere.\nWind Hazards.", color: "#4488ff", radius: 14, orbitRadius: 220, speed: 0.001, angle: Math.random() * 6.28, moons: [{ radius: 3, orbitRadius: 25, speed: 0.0125, angle: 0, color: "#fff" }] },
-            { id: 5, name: "Mars Sector", desc: "Meteor Showers.\nExtreme Danger.", color: "#ff3300", radius: 12, orbitRadius: 260, speed: 0.0009, angle: Math.random() * 6.28, moons: [ { radius: 3, orbitRadius: 20, speed: 0.01, angle: 0, color: "#ccaa88" }, { radius: 2, orbitRadius: 30, speed: 0.0075, angle: 2, color: "#ccaa88" } ] },
-            { id: 6, name: "Venus", desc: "Acid Clouds.\nElectric Storms.", color: "#eebb00", radius: 15, orbitRadius: 300, speed: 0.0006, angle: Math.random() * 6.28, moons: [] },
-            { id: 7, name: "Earth Entry", desc: "Re-entry Mission.\nHome Base.", color: "#00bbff", radius: 16, orbitRadius: 340, speed: 0.0005, angle: Math.random() * 6.28, moons: [{ radius: 4, orbitRadius: 28, speed: 0.015, angle: 1, color: "#cccccc" }] },
-            { id: 8, name: "Enceladus", desc: "Ice World.\nGeyser Hazards.", color: "#aaccff", radius: 12, orbitRadius: 380, speed: 0.0004, angle: Math.random() * 6.28, moons: [] }
+            {
+                id: 1, name: "Terra Nova", desc: "Thick Atmosphere.\nWind Hazards.", color: "#4488ff", radius: 14, orbitRadius: 130, speed: 0.002, angle: Math.random() * 6.28,
+                moons: [
+                    { id: 2, name: "The Moon", desc: "Standard Mission.\nDusty surface.", color: "#eeeeee", radius: 6, orbitRadius: 38, speed: 0.0125, angle: 0 }
+                ]
+            },
+            {
+                id: 3, name: "Mars Outpost", desc: "High Gravity.\nRugged Terrain.", color: "#cc5500", radius: 13, orbitRadius: 235, speed: 0.00125, angle: Math.random() * 6.28,
+                moons: [
+                    { id: 4, name: "Luna Prime", desc: "Training Ground.\nLow Gravity.", color: "#bbbbbb", radius: 5, orbitRadius: 33, speed: 0.01, angle: 0 },
+                    { id: 5, name: "Mars Sector", desc: "Meteor Showers.\nExtreme Danger.", color: "#ff3300", radius: 4, orbitRadius: 53, speed: 0.0075, angle: 2 }
+                ]
+            },
+            {
+                id: 6, name: "Venus", desc: "Acid Clouds.\nElectric Storms.", color: "#eebb00", radius: 15, orbitRadius: 290, speed: 0.0006, angle: Math.random() * 6.28,
+                moons: []
+            },
+            {
+                id: 7, name: "Earth Entry", desc: "Re-entry Mission.\nHome Base.", color: "#00bbff", radius: 16, orbitRadius: 395, speed: 0.0005, angle: Math.random() * 6.28,
+                moons: [
+                    { id: 8, name: "Enceladus", desc: "Ice World.\nGeyser Hazards.", color: "#aaccff", radius: 6, orbitRadius: 45, speed: 0.015, angle: 1 }
+                ]
+            }
         ];
+
+        // Create a flat array of all playable bodies ordered by ID for easy progression logic
+        this.allBodies = [];
+        this.planets.forEach(p => {
+            this.allBodies.push(p);
+            p.moons.forEach(m => this.allBodies.push(m));
+        });
+        this.allBodies.sort((a, b) => a.id - b.id);
 
         this.handleInput = this.handleInput.bind(this);
         this.resize = this.resize.bind(this);
         window.addEventListener('resize', this.resize);
     }
 
-    // NEW: Inject save data
     setProgress(completedIds) {
         this.completedLevels = completedIds;
     }
 
-    // NEW: Determine if planet is playable
-    getPlanetState(p, index) {
+    // Now checks the absolute numerical order of the flat list
+    getPlanetState(p) {
         if (!this.enforceProgression) {
             return this.completedLevels.includes(p.id) ? 'COMPLETED' : 'UNLOCKED';
         }
         if (this.completedLevels.includes(p.id)) return 'COMPLETED';
 
-        // Find the first planet in the array that hasn't been completed yet
-        let firstUncompletedIndex = this.planets.findIndex(planet => !this.completedLevels.includes(planet.id));
-        if (firstUncompletedIndex === -1) firstUncompletedIndex = this.planets.length;
+        let firstUncompletedIndex = this.allBodies.findIndex(body => !this.completedLevels.includes(body.id));
+        if (firstUncompletedIndex === -1) firstUncompletedIndex = this.allBodies.length;
 
-        if (index === firstUncompletedIndex) return 'UNLOCKED';
+        const myIndex = this.allBodies.indexOf(p);
+        if (myIndex === firstUncompletedIndex) return 'UNLOCKED';
         return 'LOCKED';
     }
 
     start() {
         this.active = true;
-        this.selectedPlanet = null; // Clear selection when returning to menu
+        this.selectedPlanet = null;
         this.pulseAnim = 0;
         this.resize();
         this.canvas.addEventListener('mousedown', this.handleInput);
@@ -108,6 +127,23 @@ export class SolarSystemMenu {
         const x = clientX - rect.left;
         const y = clientY - rect.top;
 
+
+        // Purge Button
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight; // Get screen height
+        const purgeBtnW = 140;
+        const purgeBtnH = 30;
+        const purgeBtnX = screenW - purgeBtnW - 20;
+        const purgeBtnY = screenH - purgeBtnH - 20; // Anchor to bottom
+
+        if (x >= purgeBtnX && x <= purgeBtnX + purgeBtnW && y >= purgeBtnY && y <= purgeBtnY + purgeBtnH) {
+            if (confirm("WARNING: This will permanently erase all mission progress. Proceed?")) {
+                localStorage.removeItem('neonLanderProgress');
+                location.reload();
+            }
+            return;
+        }
+
         // 1. Check Play Button
         if (this.selectedPlanet) {
             const p = this.selectedPlanet;
@@ -115,12 +151,11 @@ export class SolarSystemMenu {
             const boxY = p.currentY - 50;
             const btnX = boxX + 15;
             const btnY = boxY + 75;
-            const btnW = 140; // Increased width for "<< INITIATE >>"
+            const btnW = 140;
             const btnH = 25;
 
             if (x >= btnX && x <= btnX + btnW && y >= btnY && y <= btnY + btnH) {
-                // NEW: Block click if locked
-                const state = this.getPlanetState(p, this.planets.indexOf(p));
+                const state = this.getPlanetState(p);
                 if (state !== 'LOCKED') {
                     this.onPlayLevel(p.id);
                 }
@@ -128,19 +163,26 @@ export class SolarSystemMenu {
             }
         }
 
-        // 2. Check Planet Clicks
-        let clickedPlanet = null;
-        this.planets.forEach(p => {
+        // 2. Check Clicks on ANY body (Planets or Moons)
+        let clickedBody = null;
+        this.allBodies.forEach(p => {
             const dx = x - p.currentX;
             const dy = y - p.currentY;
             const dist = Math.sqrt(dx*dx + dy*dy);
-            if (dist < p.radius + 20) {
-                clickedPlanet = p;
+
+            // Slightly larger hitbox for tiny moons to make tapping easier
+            const hitRadius = Math.max(p.radius + 15, 25);
+
+            if (dist < hitRadius) {
+                // If multiple overlap, prefer the smallest one (moons are drawn on top)
+                if (!clickedBody || p.radius < clickedBody.radius) {
+                    clickedBody = p;
+                }
             }
         });
 
-        if (clickedPlanet) {
-            this.selectedPlanet = clickedPlanet;
+        if (clickedBody) {
+            this.selectedPlanet = clickedBody;
             this.pulseAnim = 1.0;
         } else {
             this.selectedPlanet = null;
@@ -178,13 +220,11 @@ export class SolarSystemMenu {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // Background
         this.ctx.fillStyle = "#020205";
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.save();
 
-        // Stars
         this.ctx.fillStyle = "#ffffff";
         this.stars.forEach(star => {
             this.ctx.globalAlpha = star.alpha;
@@ -196,18 +236,14 @@ export class SolarSystemMenu {
         });
         this.ctx.globalAlpha = 1.0;
 
-        // Orbits
+        // 1. Draw Planet Orbits
         this.ctx.lineWidth = 1;
-        this.planets.forEach((p, index) => {
-            const state = this.getPlanetState(p, index);
-
-            // Hide orbit completely if locked
+        this.planets.forEach(p => {
+            const state = this.getPlanetState(p);
             if (state === 'LOCKED') return;
 
-            // Revert to original dashed style for unlocked/completed
             this.ctx.setLineDash([3, 10]);
             this.ctx.globalAlpha = 0.25;
-
             this.ctx.strokeStyle = p.color;
             this.ctx.beginPath();
             this.ctx.arc(this.centerX, this.centerY, p.orbitRadius, 0, Math.PI * 2);
@@ -216,7 +252,7 @@ export class SolarSystemMenu {
         this.ctx.setLineDash([]);
         this.ctx.globalAlpha = 1.0;
 
-        // Sun
+        // 2. Sun
         this.ctx.shadowBlur = 60;
         this.ctx.shadowColor = this.sun.glow;
         this.ctx.fillStyle = this.sun.color;
@@ -225,14 +261,28 @@ export class SolarSystemMenu {
         this.ctx.fill();
         this.ctx.shadowBlur = 0;
 
-        // Planets
-        this.planets.forEach((p, index) => {
-            const state = this.getPlanetState(p, index);
+        // 3. Draw Planets and their Moons
+        this.planets.forEach(p => {
+            // Draw Moon Orbits first
+            if (p.moons) {
+                p.moons.forEach(m => {
+                    const mState = this.getPlanetState(m);
+                    if (mState !== 'LOCKED') {
+                        this.ctx.setLineDash([2, 5]);
+                        this.ctx.strokeStyle = "rgba(255,255,255,0.1)";
+                        this.ctx.lineWidth = 1;
+                        this.ctx.beginPath();
+                        this.ctx.arc(p.currentX, p.currentY, m.orbitRadius, 0, Math.PI*2);
+                        this.ctx.stroke();
+                        this.ctx.setLineDash([]);
+                    }
+                });
+            }
 
-            // Visual dimming for locked planets
-            if (state === 'LOCKED') {
+            // Draw Planet
+            const pState = this.getPlanetState(p);
+            if (pState === 'LOCKED') {
                 this.ctx.globalAlpha = 0.3;
-                this.ctx.shadowBlur = 0;
             } else {
                 this.ctx.globalAlpha = 1.0;
                 this.ctx.shadowBlur = 15;
@@ -243,74 +293,14 @@ export class SolarSystemMenu {
             this.ctx.beginPath();
             this.ctx.arc(p.currentX, p.currentY, p.radius, 0, Math.PI * 2);
             this.ctx.fill();
-
             this.ctx.shadowBlur = 0;
             this.ctx.globalAlpha = 1.0;
 
-            // Render Animated << >> for UNLOCKED (Active Target)
-                  if (state === 'UNLOCKED') {
-                      this.ctx.save();
-                      this.ctx.translate(p.currentX, p.currentY);
-
-                      // Use performance.now() for perfectly smooth, sub-millisecond continuous animation
-                      const now = performance.now();
-
-                      // Smooth, slightly larger pulse
-                      const s = p.radius + 6 + Math.sin(now / 300) * 2.0;
-
-                      this.ctx.strokeStyle = "#00ff00"; // Neon Green
-                      this.ctx.lineWidth = 2.0; // Slightly thicker to support larger size
-
-                      // Smooth continuous rotation
-                      this.ctx.rotate(now / 1500);
-
-                      this.ctx.beginPath();
-                      // Inner Left < (Doubled size)
-                      this.ctx.moveTo(-s - 4, -6); this.ctx.lineTo(-s - 10, 0); this.ctx.lineTo(-s - 4, 6);
-                      // Outer Left < (Doubled size)
-                      this.ctx.moveTo(-s - 12, -6); this.ctx.lineTo(-s - 18, 0); this.ctx.lineTo(-s - 12, 6);
-
-                      // Inner Right > (Doubled size)
-                      this.ctx.moveTo(s + 4, -6); this.ctx.lineTo(s + 10, 0); this.ctx.lineTo(s + 4, 6);
-                      // Outer Right > (Doubled size)
-                      this.ctx.moveTo(s + 12, -6); this.ctx.lineTo(s + 18, 0); this.ctx.lineTo(s + 12, 6);
-                      this.ctx.stroke();
-
-                      this.ctx.restore();
-                  }
-
-
-
-            // Click Selection Pulse
-            if (this.selectedPlanet === p && this.pulseAnim > 0) {
-                this.ctx.strokeStyle = "white";
-                this.ctx.lineWidth = 2;
-                this.ctx.globalAlpha = this.pulseAnim;
-                this.ctx.beginPath();
-                this.ctx.arc(p.currentX, p.currentY, p.radius + 12 + (1-this.pulseAnim)*15, 0, Math.PI*2);
-                this.ctx.stroke();
-                this.ctx.globalAlpha = 1.0;
-            }
-
-            // Moons
+            // Draw Moons
             if (p.moons) {
                 p.moons.forEach(m => {
-                    this.ctx.globalAlpha = state === 'LOCKED' ? 0.2 : 1.0; // Dim moons if locked
-
-                    // Only draw moon orbit lines if the planet is unlocked/completed
-                    if (state !== 'LOCKED') {
-                        // NEW: Dashed moon orbits (smaller dashes than the planets)
-                        this.ctx.setLineDash([2, 5]);
-
-                        this.ctx.strokeStyle = "rgba(255,255,255,0.1)";
-                        this.ctx.lineWidth = 1;
-                        this.ctx.beginPath();
-                        this.ctx.arc(p.currentX, p.currentY, m.orbitRadius, 0, Math.PI*2);
-                        this.ctx.stroke();
-
-                        // Reset line dash
-                        this.ctx.setLineDash([]);
-                    }
+                    const mState = this.getPlanetState(m);
+                    this.ctx.globalAlpha = mState === 'LOCKED' ? 0.3 : 1.0;
 
                     this.ctx.fillStyle = m.color;
                     this.ctx.beginPath();
@@ -322,10 +312,73 @@ export class SolarSystemMenu {
             }
         });
 
+        // 4. Overlays (Target brackets and Selection Pulse) applied to ALL bodies
+        this.allBodies.forEach(body => {
+            const state = this.getPlanetState(body);
+
+            // Active Target Brackets
+            if (state === 'UNLOCKED') {
+                this.ctx.save();
+                this.ctx.translate(body.currentX, body.currentY);
+
+                const now = performance.now();
+                const s = body.radius + 6 + Math.sin(now / 300) * 2.0;
+
+                this.ctx.strokeStyle = "#00ff00";
+                this.ctx.lineWidth = 2.0;
+                this.ctx.rotate(now / 1500);
+
+                this.ctx.beginPath();
+                this.ctx.moveTo(-s - 4, -6); this.ctx.lineTo(-s - 10, 0); this.ctx.lineTo(-s - 4, 6);
+                this.ctx.moveTo(-s - 12, -6); this.ctx.lineTo(-s - 18, 0); this.ctx.lineTo(-s - 12, 6);
+
+                this.ctx.moveTo(s + 4, -6); this.ctx.lineTo(s + 10, 0); this.ctx.lineTo(s + 4, 6);
+                this.ctx.moveTo(s + 12, -6); this.ctx.lineTo(s + 18, 0); this.ctx.lineTo(s + 12, 6);
+                this.ctx.stroke();
+
+                this.ctx.restore();
+            }
+
+            // Click Selection Pulse
+            if (this.selectedPlanet === body && this.pulseAnim > 0) {
+                this.ctx.strokeStyle = "white";
+                this.ctx.lineWidth = 2;
+                this.ctx.globalAlpha = this.pulseAnim;
+                this.ctx.beginPath();
+                this.ctx.arc(body.currentX, body.currentY, body.radius + 12 + (1-this.pulseAnim)*15, 0, Math.PI*2);
+                this.ctx.stroke();
+                this.ctx.globalAlpha = 1.0;
+            }
+        });
+
         // Info Box
         if (this.selectedPlanet) {
             this.drawInfoBox(this.selectedPlanet);
         }
+
+
+
+        // --- NEW: Draw Purge Data Button ---
+        const screenW = window.innerWidth;
+        const screenH = window.innerHeight; // Get screen height
+        const purgeBtnW = 140;
+        const purgeBtnH = 30;
+        const purgeBtnX = screenW - purgeBtnW - 20;
+        const purgeBtnY = screenH - purgeBtnH - 20; // Anchor to bottom
+
+        this.ctx.strokeStyle = "rgba(255, 68, 68, 0.6)";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeRect(purgeBtnX, purgeBtnY, purgeBtnW, purgeBtnH);
+
+        this.ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+        this.ctx.fillRect(purgeBtnX, purgeBtnY, purgeBtnW, purgeBtnH);
+
+        this.ctx.fillStyle = "#ff4444";
+        this.ctx.font = "bold 14px Courier New";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText("[ PURGE DATA ]", purgeBtnX + purgeBtnW / 2, purgeBtnY + purgeBtnH / 2 + 1);
+
 
         this.ctx.restore();
     }
@@ -394,13 +447,13 @@ export class SolarSystemMenu {
             this.ctx.fillText(line, targetX + 15, targetY + 60 + (i*16));
         });
 
-        // Button UI (changes based on state)
+        // Button UI
         const btnX = targetX + 15;
         const btnY = targetY + 80;
         const btnW = 140;
         const btnH = 25;
 
-        const state = this.getPlanetState(p, this.planets.indexOf(p));
+        const state = this.getPlanetState(p);
 
         if (state === 'LOCKED') {
             this.ctx.strokeStyle = "#ff4444";
@@ -412,7 +465,7 @@ export class SolarSystemMenu {
 
             this.ctx.fillStyle = "#ff4444";
             this.ctx.font = "bold 12px Courier New";
-            this.ctx.fillText("[ RESTRICTED ]", btnX + 8, btnY + 17);
+            this.ctx.fillText("[ RESTRICTED ]", btnX + 18, btnY + 17);
         } else {
             this.ctx.strokeStyle = "#00ff00";
             this.ctx.lineWidth = 1;
@@ -423,7 +476,7 @@ export class SolarSystemMenu {
 
             this.ctx.fillStyle = "#00ff00";
             this.ctx.font = "bold 12px Courier New";
-            this.ctx.fillText("<< INITIATE >>", btnX + 18, btnY + 17);
+            this.ctx.fillText("<< INITIATE >>", btnX + 14, btnY + 17);
         }
     }
 }
