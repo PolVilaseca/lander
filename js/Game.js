@@ -30,6 +30,7 @@ export class Game {
         this.terrain = null;
         this.atmosphere = null;
         this.levelData = null;
+        this.onLevelComplete = null; // NEW
 
         this.loop = this.loop.bind(this);
         window.addEventListener('resize', () => this.resize());
@@ -272,6 +273,10 @@ export class Game {
     }
 
     handleLevelComplete() {
+      // Trigger progression save right as the win sequence starts
+        if (this.onLevelComplete && this.levelData) {
+            this.onLevelComplete(this.levelData.id);
+        }
         // RADAR PULSE EFFECT: Spawn 3 rings, separated by 300ms
         for (let i = 0; i < 3; i++) {
             setTimeout(() => {

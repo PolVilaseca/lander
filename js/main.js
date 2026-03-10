@@ -4,6 +4,7 @@ import { SolarSystemMenu } from './SolarSystemMenu.js';
 
 // --- CONFIGURATION ---
 const DEBUG_MODE = false;
+const ENFORCE_PROGRESSION = true; // NEW: Toggle progression system on/off
 // ---------------------
 
 const menuScreen = document.getElementById('menu-screen');
@@ -13,15 +14,24 @@ const canvas = document.getElementById('gameCanvas');
 const btnRetry = document.getElementById('btn-retry');
 const btnHome = document.getElementById('btn-home');
 
-// Removed: const hud = document.getElementById('hud'); // No longer exists in HTML
-
 const game = new Game(canvas);
 let solarSystem = null;
 let currentLevelData = null;
 let allLevels = [];
 
+// NEW: Load completed levels from local storage (so progress persists if you refresh)
+let completedLevels = JSON.parse(localStorage.getItem('neonLanderProgress')) || [];
+
 async function init() {
     allLevels = await LevelLoader.loadLevels();
+
+    // NEW: Hook into the game's win state to save progress
+    game.onLevelComplete = (levelId) => {
+        if (!completedLevels.includes(levelId)) {
+            completedLevels.push(levelId);
+            localStorage.setItem('neonLanderProgress', JSON.stringify(completedLevels));
+        }
+    };
 
     if (DEBUG_MODE) {
         initDebugMenu();
@@ -57,6 +67,7 @@ function initSolarSystemMenu() {
     const instructionText = menuScreen.querySelector('p');
     if(instructionText) instructionText.style.display = 'none';
 
+    // Pass the progression toggle to the menu
     solarSystem = new SolarSystemMenu(canvas, (levelId) => {
         const level = allLevels.find(l => l.id === levelId);
         if (level) {
@@ -64,8 +75,10 @@ function initSolarSystemMenu() {
         } else {
             console.error("Level ID not found:", levelId);
         }
-    });
+    }, ENFORCE_PROGRESSION);
 
+    // Inject the save data
+    solarSystem.setProgress(completedLevels);
     solarSystem.start();
 }
 
@@ -76,8 +89,6 @@ function startGame(levelData) {
     menuScreen.classList.add('hidden');
     endScreen.classList.add('hidden');
 
-    // Removed: hud.classList.remove('hidden');
-
     game.start(levelData);
 }
 
@@ -86,13 +97,18 @@ function showMainMenu() {
     menuScreen.classList.remove('hidden');
     endScreen.classList.add('hidden');
 
-    // Removed: hud.classList.add('hidden');
-
     if (DEBUG_MODE) {
-        // Debug mode logic
+        initDebugMenu();
     } else {
-        if (solarSystem) solarSystem.start();
+        // Ensure menu updates with new brackets/dots if a level was just beaten
+        if (solarSystem) {
+            solarSystem.setProgress(completedLevels);
+            solarSystem.start();
+        } else {
+            initSolarSystemMenu();
+        }
     }
 }
 
+// Start application
 init();
